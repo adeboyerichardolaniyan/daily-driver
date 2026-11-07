@@ -1,0 +1,10 @@
+# Deploy as PowerSync sync streams. Authenticate with this Supabase project's JWTs.
+config:
+  edition: 3
+streams:
+  workspace:
+    auto_subscribe: true
+    query: |
+      SELECT id, actor_id, clock, created_at, payload
+      FROM workspace_events
+      WHERE owner_id = auth.user_id()

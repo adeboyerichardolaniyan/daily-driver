@@ -1,1 +1,12 @@
 .bruin.yml
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+.DS_Store
+src-tauri/target/
+test-results/
+playwright-report/
+.print-worker/
+src-tauri/gen/
