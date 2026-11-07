@@ -1,0 +1,52 @@
+name: Dismissal Suggester
+
+on:
+  issue_comment:
+    types: [created, edited]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  suggest:
+    if: >
+      github.event.issue.pull_request != null &&
+      vars.REVUE_REVIEWER_LOGIN != '' &&
+      github.event.comment.user.login == vars.REVUE_REVIEWER_LOGIN &&
+      (
+        (
+          github.event.action == 'created' &&
+          contains(github.event.comment.body, '<!-- revue-review:v1') &&
+          !contains(github.event.comment.body, 'Suggested dismissals')
+        ) ||
+        (
+          github.event.action == 'edited' &&
+          contains(github.event.comment.body, '<!-- dismissal-suggester:v1 -->')
+        )
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run suggester
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.REVIEWER_PAT }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+          TRIGGERING_COMMENT_ID: ${{ github.event.comment.id }}
+          MODEL_ID: "moonshotai/kimi-k2.6-20260420"
+          REVIEWER_LOGIN: ${{ vars.REVUE_REVIEWER_LOGIN }}
+          SUGGESTER_PROVIDER_ORDER: ${{ vars.REVUE_SUGGESTER_PROVIDER_ORDER }}
+          SUGGESTER_PROVIDER_IGNORE: ${{ vars.REVUE_SUGGESTER_PROVIDER_IGNORE }}
+          SUGGESTER_ALLOW_FALLBACKS: ${{ vars.REVUE_SUGGESTER_ALLOW_FALLBACKS }}
+          SUGGESTER_REASONING_EFFORT: ${{ vars.REVUE_SUGGESTER_REASONING_EFFORT }}
+          SUGGESTER_RETRY_REASONING_EFFORT: ${{ vars.REVUE_SUGGESTER_RETRY_REASONING_EFFORT }}
+          SUGGESTER_REASONING_EXCLUDE: ${{ vars.REVUE_SUGGESTER_REASONING_EXCLUDE }}
+        run: python .github/scripts/suggest_dismissals.py

@@ -1,0 +1,46 @@
+name: Logic Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: review-logic-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run logic review
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.REVIEWER_PAT }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          MODEL_ID: "deepseek/deepseek-v4-pro-20260423"
+          REVIEWER_TYPE: logic
+          REVIEWER_LOGIN: ${{ vars.REVUE_REVIEWER_LOGIN }}
+          REVIEW_PROVIDER_ORDER: ${{ vars.REVUE_REVIEW_PROVIDER_ORDER }}
+          REVIEW_PROVIDER_IGNORE: ${{ vars.REVUE_REVIEW_PROVIDER_IGNORE }}
+          REVIEW_ALLOW_FALLBACKS: ${{ vars.REVUE_REVIEW_ALLOW_FALLBACKS }}
+          REVIEW_REASONING_EFFORT: ${{ vars.REVUE_REVIEW_REASONING_EFFORT }}
+          REVIEW_RETRY_REASONING_EFFORT: ${{ vars.REVUE_REVIEW_RETRY_REASONING_EFFORT }}
+          REVIEW_REASONING_EXCLUDE: ${{ vars.REVUE_REVIEW_REASONING_EXCLUDE }}
+          AI_REVIEW_ALLOW_EXTERNAL: "true"
+        run: python .github/scripts/run_review.py
