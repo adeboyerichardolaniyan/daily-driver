@@ -1,29 +1,43 @@
 import { useSyncExternalStore } from "react";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { ConvexReactClient } from "convex/react";
 import type {
   AbstractPowerSyncDatabase,
   PowerSyncBackendConnector,
 } from "@powersync/common";
+import { api } from "../../convex/_generated/api";
 import { db } from "./database";
 
-const url = import.meta.env.VITE_SUPABASE_URL;
-const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const url = import.meta.env.VITE_CONVEX_URL;
 const endpoint = import.meta.env.VITE_POWERSYNC_URL;
-export const syncConfigured = Boolean(url && key && endpoint);
-export const supabase: SupabaseClient | null = syncConfigured
-  ? createClient(url, key)
-  : null;
+export const syncConfigured = Boolean(url && endpoint);
+export const convex = syncConfigured ? new ConvexReactClient(url) : null;
 
-class Connector implements PowerSyncBackendConnector {
-  constructor(private client: SupabaseClient) {}
+export class Connector implements PowerSyncBackendConnector {
+  constructor(
+    private client: ConvexReactClient,
+    private token: string,
+  ) {}
   async fetchCredentials() {
-    const { data, error } = await this.client.auth.getSession();
-    if (error) throw error;
-    if (!data.session) throw new Error("Sign in to connect your devices.");
+    const segment = this.token.split(".")[1];
+    if (!segment)
+      throw new Error("The sync session token is invalid. Sign in again.");
+    const payload: unknown = JSON.parse(
+      atob(segment.replace(/-/g, "+").replace(/_/g, "/")),
+    );
+    if (
+      !payload ||
+      typeof payload !== "object" ||
+      !("exp" in payload) ||
+      typeof payload.exp !== "number" ||
+      !Number.isFinite(payload.exp)
+    )
+      throw new Error(
+        "The sync session has no valid expiration. Sign in again.",
+      );
     return {
       endpoint,
-      token: data.session.access_token,
-      expiresAt: new Date(data.session.expires_at! * 1000),
+      token: this.token,
+      expiresAt: new Date(payload.exp * 1000),
     };
   }
   async uploadData(database: AbstractPowerSyncDatabase) {
@@ -32,12 +46,27 @@ class Connector implements PowerSyncBackendConnector {
     const events = transaction.crud.map((op) => {
       if (op.table !== "workspace_events" || op.op !== "PUT")
         throw new Error("Unexpected write: event history is append-only.");
-      return { id: op.id, ...op.opData };
+      const fields = op.opData;
+      if (
+        !fields ||
+        typeof fields.actor_id !== "string" ||
+        typeof fields.clock !== "number" ||
+        typeof fields.created_at !== "string" ||
+        typeof fields.payload !== "string"
+      )
+        throw new Error(
+          "Invalid queued event. Local history has been retained.",
+        );
+      return {
+        id: op.id,
+        actor_id: fields.actor_id,
+        clock: fields.clock,
+        created_at: fields.created_at,
+        payload: fields.payload,
+      };
     });
-    const { error } = await this.client.rpc("append_workspace_events", {
-      events,
-    });
-    if (error) throw error;
+    await this.client.mutation(api.workspace.appendEvents, { events });
+    // Never acknowledge rejected uploads: preserve the local queue for recovery.
     await transaction.complete();
   }
 }
@@ -58,81 +87,60 @@ export function useConnection() {
     () => connection,
   );
 }
-export function startSync() {
-  void connectSync().catch((error) =>
-    publish({
-      account: null,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Could not connect sync. Local work is still available.",
-    }),
-  );
+export function connectedClient() {
+  if (!convex || !connection.account)
+    throw new Error("Connect your workspace before printing.");
+  return convex;
 }
 
-export async function connectSync(): Promise<string | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
-  if (!data.session) return null;
-  const userId = data.session.user.id;
-  const bound = await db.getOptional<{ value: string }>(
-    "SELECT value FROM local_settings WHERE id = ?",
-    ["account"],
-  );
-  if (!bound) {
-    const membership = await supabase
-      .from("app_members")
-      .select("user_id")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (membership.error || !membership.data)
-      throw new Error(
-        "This account has not been granted access to the workspace.",
-      );
-  }
-  await db.writeTransaction(async (tx) => {
-    const current = await tx.getOptional<{ value: string }>(
-      "SELECT value FROM local_settings WHERE id = ?",
-      ["account"],
-    );
-    if (current && current.value !== userId)
-      throw new Error(
-        "This local workspace belongs to a different account. Sign back into the original account.",
-      );
-    await tx.execute(
-      "INSERT OR IGNORE INTO local_settings (id, value) VALUES (?, ?)",
-      ["account", userId],
-    );
-  });
-  await db.connect(new Connector(supabase));
-  const account = data.session.user.email ?? userId;
-  publish({ account, error: null });
-  return account;
-}
-
-export async function signIn(email: string, password: string) {
-  if (!supabase)
-    throw new Error("Sync is not configured. See docs/stage-one.md.");
-  // Check the identity before writing credentials into the shared session store.
-  const probe = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data, error } = await probe.auth.signInWithPassword({
-    email,
-    password,
-  });
-  if (error) throw error;
-  const bound = await db.getOptional<{ value: string }>(
-    "SELECT value FROM local_settings WHERE id = ?",
-    ["account"],
-  );
-  if (bound && bound.value !== data.user.id)
-    throw new Error("Use the account already connected to this workspace.");
-  const result = await supabase.auth.setSession({
-    access_token: data.session.access_token,
-    refresh_token: data.session.refresh_token,
-  });
-  if (result.error) throw result.error;
-  return connectSync();
+// Serialize external connection changes so a late authentication result cannot
+// connect the database after sign-out, token refresh, or React effect cleanup.
+let lifecycle = Promise.resolve();
+export function attachSync(token: string | null, authenticated: boolean) {
+  let disposed = false;
+  lifecycle = lifecycle
+    .then(async () => {
+      await db.disconnect();
+      publish({ account: null, error: null });
+      if (disposed || !token || !authenticated || !convex) return;
+      const account = await convex.query(api.workspace.account, {});
+      if (disposed) return;
+      const identity = `convex:${url}:${account.id}`;
+      await db.writeTransaction(async (tx) => {
+        const current = await tx.getOptional<{ value: string }>(
+          "SELECT value FROM local_settings WHERE id = ?",
+          ["account"],
+        );
+        if (current && current.value !== identity)
+          throw new Error(
+            "This local workspace belongs to a different account or deployment. Use the original connection; your local history has not been removed.",
+          );
+        await tx.execute(
+          "INSERT OR IGNORE INTO local_settings (id, value) VALUES (?, ?)",
+          ["account", identity],
+        );
+      });
+      if (disposed) return;
+      await db.connect(new Connector(convex, token));
+      if (!disposed) publish({ account: account.label, error: null });
+    })
+    .catch((error) => {
+      if (!disposed)
+        publish({
+          account: null,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Could not connect sync. Local work is still available.",
+        });
+    });
+  return () => {
+    disposed = true;
+    lifecycle = lifecycle
+      .then(async () => {
+        await db.disconnect();
+        publish({ account: null, error: null });
+      })
+      .catch(() => {});
+  };
 }

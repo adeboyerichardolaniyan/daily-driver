@@ -154,13 +154,13 @@ These choices are the recommended starting point, not claims of an already worki
 | macOS shell | Tauri | Installed desktop app, separate windows, OS integration |
 | Phone access | Responsive web app with offline app-shell support | Browser-based use and QR landing pages |
 | Local data | SQLite through platform-appropriate adapters | Immediate reads/writes and offline work |
-| Synchronization | PowerSync with Postgres | Propagate durable changes across devices |
+| Synchronization | PowerSync with Convex | Propagate durable changes across devices |
 | Attachments | Object storage with local caching | Keep large files separate from task synchronization |
 | Background processing | Durable server-side jobs | AI requests, ingestion, calendar refresh, planning |
 | Printing | Persistent worker on the Mac mini | Local hardware access and job recovery |
 | Sound | Cuelume | Consistent synthesized interaction feedback |
 
-Validate the Tauri/PowerSync integration, shared state across desktop windows, and mobile-browser storage behavior before committing deeply to the data layer. Select hosting, authentication, model providers, job infrastructure, and storage providers in implementation decisions.
+Validate the Tauri/PowerSync integration, shared state across desktop windows, and mobile-browser storage behavior before committing deeply to the data layer. Convex is the chosen cloud backend, with Convex Auth for private account access. PowerSync retains durable local SQLite and offline uploads; its Convex integration is experimental and must pass deployed multi-device acceptance. Select model providers and additional storage/job infrastructure as needed in later implementation decisions.
 
 ### Data and ownership rules
 

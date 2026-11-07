@@ -7,7 +7,7 @@ import "./index.css";
 import "./workspace.css";
 import App from "./App";
 import { db } from "./data/database";
-import { startSync } from "./data/sync";
+import { WorkspaceAuth } from "./data/auth";
 
 class ErrorBoundary extends Component<
   { children: ReactNode },
@@ -43,12 +43,13 @@ async function boot() {
     <StrictMode>
       <ErrorBoundary>
         <PowerSyncContext.Provider value={db}>
-          <App />
+          <WorkspaceAuth>
+            <App />
+          </WorkspaceAuth>
         </PowerSyncContext.Provider>
       </ErrorBoundary>
     </StrictMode>,
   );
-  startSync();
 }
 void boot().catch((error) =>
   root.render(

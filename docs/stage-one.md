@@ -37,25 +37,25 @@ Opening the workspace waits only for local storage. Authentication refresh and s
 
 ### Backend choice
 
-Supabase is the initial Postgres/auth provider, with PowerSync handling downstream synchronization. This is a concrete implementation choice introduced in Stage 1, not an additional product requirement. No project has been provisioned or charged through this repository.
+Convex is the chosen backend, replacing the initial Supabase implementation. Convex Auth handles private email/password sign-in; Convex mutations validate ownership, immutable event uploads, and atomic print-job claims. PowerSync retains the local SQLite database, durable upload queue, and downstream replication. No service has been provisioned or charged by this migration.
+
+The [PowerSync Convex connector](https://docs.powersync.com/configuration/source-db/setup#convex) is experimental. Cloud replication polls Convex approximately once per second, plus network/processing time. Local task edits are immediate; cross-device synchronization is near-real-time, not zero-latency. This needs deployed acceptance before relying on it daily. Convex Auth is also currently beta.
+
+Client UUIDs remain stable: Convex stores them in `uuid`, and the sync stream selects `uuid AS id`. Server-generated Convex document IDs never replace local task/event IDs. The signed `workspace_owner` JWT claim identifies the private member independently of the session-specific `sub`. Backend functions also check membership on every request. Previously issued sync tokens remain valid until expiry after access revocation; invalidate sessions and rotate signing keys if urgent revocation is required.
 
 ## Set up cross-device synchronization
 
-1. Create a dedicated Supabase project and apply `supabase/migrations/202611070001_foundation.sql` through its SQL editor or migration CLI.
-2. Disable public account sign-up. Create your one email/password auth user through the provider's administrative UI.
-3. Add that user's UUID to the allowlist using the administrative SQL editor:
+1. Run `npm run convex:dev` and choose/create the dedicated Convex project/development deployment. The CLI writes `CONVEX_DEPLOYMENT` and `VITE_CONVEX_URL` into `.env.local`, deploys the functions, and refreshes `convex/_generated`. The checked-in bindings allow local-only builds without a deployment. Keep `convex dev` running while changing backend code.
+2. Follow [Convex Auth setup](https://labs.convex.dev/auth/setup), running `npx @convex-dev/auth` against that deployment to configure `JWT_PRIVATE_KEY`, `JWKS`, and `SITE_URL`. The repository already contains `auth.ts`, `auth.config.ts`, `http.ts`, and auth schema tables; preserve the private sign-in restriction if the setup tool offers file edits. Use the real HTTPS browser app URL as `SITE_URL`.
+3. In the authenticated Convex dashboard, run the **internal** `admin:provisionOwner` action with your email and a strong password (at least 12 characters). Do not put credentials in shell history or tracked files. It creates the password account and singleton workspace membership. Public sign-up/reset flows are disabled. This admin action is unavailable to public clients. For password recovery, use Convex Auth's administrative credential-reset API; recovery UI is not implemented.
+4. Create a PowerSync instance with the Convex deployment URL and a deployment key with the documented `deployment:data:view` permission. Store that key only in PowerSync's secret configuration. The required `powersync_checkpoints` table and `powersync_checkpoints:createCheckpoint` mutation are already included. The checkpoint mutation is public per PowerSync's protocol; it only advances a singleton timestamp and exposes no workspace data.
+5. Configure PowerSync custom JWT authentication with the Convex Auth JWKS URL `https://YOUR-DEPLOYMENT.convex.site/.well-known/jwks.json` and audience `convex`. See [custom authentication](https://docs.powersync.com/configuration/auth/custom). Deploy `powersync/sync-config.yaml`. It replicates only events belonging to the signed `workspace_owner` claim. Print jobs stay on Convex and are never included in this stream.
+6. Set `VITE_POWERSYNC_URL` and `VITE_PUBLIC_APP_URL` alongside `VITE_CONVEX_URL` in `.env.local`. The public app URL must be the real HTTPS origin your phone can reach. No deploy key, signing key, or worker secret belongs in `VITE_*`.
+7. Rebuild/restart the app. In Settings & connections, sign in using the provisioned account. Sign in with the same account/deployment on each device. Existing unbound local events upload automatically. Token refresh reconnects sync without clearing local data. Local startup does not wait for authentication.
+8. For production, deploy with `npm run convex:deploy`, configure the production auth keys/owner/worker secret and matching PowerSync instance, then build the app with the production public URLs. A development account/database is separate from production.
+9. If using custom Convex/PowerSync hosts, add their exact trusted origins to `connect-src` in `src-tauri/tauri.conf.json` and rebuild. Do not use an unrestricted wildcard.
 
-   ```sql
-   insert into public.app_members(user_id) values ('YOUR_AUTH_USER_UUID');
-   ```
-
-4. Create/configure a PowerSync instance against this Postgres database using the provider's replication-role/publication setup. Replicate `workspace_events`; printing stays on Supabase.
-5. Configure PowerSync to validate this Supabase project's JWTs. Deploy `powersync/sync-config.yaml` as its sync-stream configuration.
-6. Copy `.env.example` to `.env.local` and set the four public `VITE_*` variables. The Supabase publishable key is intended for the client; never substitute a service-role key. Set `VITE_PUBLIC_APP_URL` to the real HTTPS browser-app origin used by your phone.
-7. Rebuild/restart the app. In Settings & connections, sign in. Sign in with the same account on each device. Existing local events upload on connection.
-8. If your PowerSync hostname differs from the permitted hosts in `src-tauri/tauri.conf.json`, add the exact trusted host to `connect-src` and rebuild. Do not use an unrestricted wildcard.
-
-The local database binds to the first account it connects to and refuses a different account. There is no account-switching or destructive reset UI in this foundation. An app member can read only their own events and print jobs; public/other accounts cannot append events or claim jobs.
+The local database binds to its first Convex account **and deployment** and refuses another. No local history is deleted. A workspace previously connected to Supabase is deliberately not silently rebound: export its history and perform an explicit migration before connecting to Convex. This repository had no configured cloud deployment when the backend changed. Unbound local-only workspaces need no data migration.
 
 ### Cloud acceptance still required
 
@@ -65,7 +65,7 @@ The local database binds to the first account it connects to and refuses a diffe
 - Move the active focus session between the phone and both Macs.
 - Validate provider replication configuration and actual delivery latency.
 
-Unit and embedded-Postgres tests cover reconciliation and database permissions, but do not replace these deployed-service checks.
+Domain and `convex-test` tests cover reconciliation, authorization, input validation, and transactional backend behavior, but do not replace these deployed-service checks.
 
 ## Set up the Mac mini print worker
 
@@ -73,12 +73,12 @@ The initial transport is the macOS CUPS spooler (`lp`), using the printer's inst
 
 1. Install the printer and its macOS driver on the Mac mini. Verify a normal system print, paper size, and cutter behavior. Find the queue name with `lpstat -p`.
 2. Install Node.js 24+, clone this repository on the Mac mini, run `npm ci`, and install the rendering browser with `npx playwright install chromium`.
-3. Create a private `.env.worker` containing `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `WORKER_EMAIL`, `WORKER_PASSWORD`, `PRINTER_NAME`, and a stable `WORKER_ID`. Use the same allowlisted account. Restrict the file to its owner (`chmod 600 .env.worker`). Never commit credentials.
+3. Create a private `.env.worker` containing `CONVEX_URL`, `PRINT_WORKER_SECRET`, `PRINTER_NAME`, and a stable `WORKER_ID`. Set the same strong, randomly generated `PRINT_WORKER_SECRET` (at least 32 characters) in the Convex deployment environment. This credential grants only the dedicated worker functions, not task access. The worker requires no user password. Restrict the file to its owner (`chmod 600 .env.worker`). Never commit credentials.
 4. Run `npm run print:worker` on the mini. Its state directory defaults to `.print-worker`; use a stable `PRINT_STATE_DIR` outside the checkout if deployments replace it.
 5. On the app's Briefings screen, preview the receipt, then explicitly send it to the mini. Refresh print activity to see the outcome.
 6. Inspect the physical receipt and scan each QR code with the phone. Authenticate to the same workspace if needed. The linked task has a direct completion action.
 
-For unattended operation, register the command as a per-user macOS LaunchAgent with `RunAtLoad` and `KeepAlive`, an absolute Node path, this checkout as its working directory, and log paths. Do not put the password directly in a tracked plist. A LaunchAgent runs after login; printing before login or with a sleeping machine is not promised. Keep the workstation awake when scheduled printing is added.
+For unattended operation, register the command as a per-user macOS LaunchAgent with `RunAtLoad` and `KeepAlive`, an absolute Node path, this checkout as its working directory, and log paths. Do not put the worker secret directly in a tracked plist. A LaunchAgent runs after login; printing before login or with a sleeping machine is not promised. Keep the workstation awake when scheduled printing is added.
 
 ### Print safety and recovery
 
@@ -93,12 +93,14 @@ For unattended operation, register the command as a per-user macOS LaunchAgent w
 
 ## Verification performed
 
+Convex migration checks: 23 unit tests, eight production browser tests across Chromium/WebKit, TypeScript, Rust compilation, and a rebuilt unsigned debug macOS bundle pass. Authentication lifecycle tests cover account/deployment binding and ignoring late identity results after cleanup. Live Convex/PowerSync acceptance remains outstanding.
+
 - TypeScript checks and production web build.
 - Rust compilation and a packaged, unsigned debug macOS app build.
 - Actual macOS app launch, example creation, timer start, detached focus window, and pause propagation back to the main window.
 - Chromium and WebKit browser tests for local task persistence, offline edits, multi-window focus, mobile hierarchy editing, and a fully offline reload of the production app shell.
 - Domain tests for duplicate delivery, concurrent edits, preserved completion, hierarchy cycles, and focus-session ordering.
-- Embedded Postgres tests executing the migration and checking ownership, denied mutable writes, idempotent event upload, job claiming, and uncertain-outcome handling.
+- Convex in-memory tests executing the actual functions for ownership, event validation, atomic collision rejection, idempotent retries, exclusive job claiming, worker authentication, and terminal/uncertain print outcomes. These are not deployed Convex or PowerSync integration tests.
 - Receipt rendering tests for text escaping and stable credential-free HTTPS QR links.
 
 No deployed sync service or physical printer was available for this implementation session. Stage 1 is not fully accepted until the cloud and hardware checks above pass.

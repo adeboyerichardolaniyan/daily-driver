@@ -9,7 +9,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { signIn, syncConfigured } from "@/data/sync";
+import { syncConfigured } from "@/data/sync";
+import { useSignIn } from "@/data/auth";
 import type { WorkspaceRepository } from "@/data/repository";
 
 export function Connections({
@@ -21,6 +22,7 @@ export function Connections({
   repository: WorkspaceRepository;
   run: (work: () => Promise<unknown>) => void;
 }) {
+  const signIn = useSignIn();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);

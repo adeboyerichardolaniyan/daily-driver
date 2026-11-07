@@ -1,4 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "../convex/_generated/api";
 import { chromium } from "@playwright/test";
 import { DatabaseSync } from "node:sqlite";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -13,10 +14,8 @@ const required = (name: string) => {
   if (!value) throw new Error(`Missing ${name}. See docs/stage-one.md.`);
   return value;
 };
-const url = required("SUPABASE_URL");
-const key = required("SUPABASE_PUBLISHABLE_KEY");
-const email = required("WORKER_EMAIL");
-const password = required("WORKER_PASSWORD");
+const url = required("CONVEX_URL");
+const secret = required("PRINT_WORKER_SECRET");
 const printer = required("PRINTER_NAME");
 const worker = process.env.WORKER_ID || "workstation-mac-mini";
 const directory = resolve(process.env.PRINT_STATE_DIR || ".print-worker");
@@ -32,10 +31,7 @@ const journal = new DatabaseSync(resolve(directory, "journal.sqlite"));
 journal.exec(
   "CREATE TABLE IF NOT EXISTS attempts (id TEXT PRIMARY KEY, status TEXT NOT NULL, detail TEXT, reported INTEGER NOT NULL DEFAULT 0)",
 );
-const client = createClient(url, key, { auth: { persistSession: false } });
-const login = await client.auth.signInWithPassword({ email, password });
-if (login.error)
-  throw new Error("Worker sign-in failed. Check the configured account.");
+const client = new ConvexHttpClient(url);
 // No raw socket is exposed. All jobs are obtained over authenticated outbound HTTPS.
 if (!url.startsWith("https://") && !url.startsWith("http://127.0.0.1:"))
   throw new Error("Worker requires HTTPS (or a local development backend).");
@@ -53,26 +49,20 @@ async function finish(id: string, status: string, detail: string | null) {
       "UPDATE attempts SET status = ?, detail = ?, reported = 0 WHERE id = ?",
     )
     .run(status, detail, id);
-  const { error } = await client.rpc("finish_print_job", {
-    job: id,
+  if (status !== "dispatched" && status !== "failed" && status !== "uncertain")
+    throw new Error("Invalid journal outcome.");
+  await client.mutation(api.printing.finish, {
+    secret,
+    id,
     worker,
     outcome: status,
     detail,
   });
-  if (error)
-    throw new Error(
-      "Could not report print outcome; it is retained in the local journal.",
-    );
   journal.prepare("UPDATE attempts SET reported = 1 WHERE id = ?").run(id);
 }
 async function reconcile() {
   // A worker killed after claim but before journal creation is also uncertain.
-  const { data, error } = await client
-    .from("print_jobs")
-    .select("id")
-    .eq("worker_id", worker)
-    .eq("status", "processing");
-  if (error) throw new Error("Could not load interrupted jobs.");
+  const data = await client.query(api.printing.interrupted, { secret, worker });
   for (const job of data ?? [])
     journal
       .prepare(
@@ -107,9 +97,7 @@ try {
           String(row.status),
           row.detail === null ? null : String(row.detail),
         );
-      const { data, error } = await client.rpc("claim_print_job", { worker });
-      if (error) throw new Error("Could not claim a print job.");
-      const job = data?.[0];
+      const job = await client.mutation(api.printing.claim, { secret, worker });
       if (job) {
         const existing = journal
           .prepare("SELECT status FROM attempts WHERE id = ?")
@@ -187,7 +175,6 @@ try {
   }
 } finally {
   await browser.close();
-  await client.auth.signOut();
   journal.close();
   lock.close();
 }

@@ -1,6 +1,6 @@
 # Daily Driver
 
-A personal, local-first workspace for small steps, focused work, and printed daily briefings. Built with React, shadcn/ui, Tauri, and SQLite/PowerSync.
+A personal, local-first workspace for small steps, focused work, and printed daily briefings. Built with React, shadcn/ui, Tauri, Convex, and SQLite/PowerSync.
 
 ## Run locally
 
@@ -29,10 +29,10 @@ npm run tauri -- build --debug --bundles app
 - Focus timer, pause/resume, switching, later-today deferral, immersive view, and a separate focus window.
 - Same-device window continuity, append-only edit history, and JSON export.
 - Responsive browser interface and cached production app shell for offline reloads.
-- Supabase/PowerSync connector, owner-restricted backend migration, and sync-stream configuration.
+- Convex Auth, owner-restricted Convex functions, and a PowerSync connector with offline upload persistence.
 - Receipt preview, stable task QR links, print queue, and a persistent Mac mini worker using the macOS print spooler.
 
-Cloud synchronization and physical printing require setup and have not yet been verified against the user's deployed services or printer. AI generation, calendar integration, automatic daily planning, scheduled printing, the visual receipt editor, and sound feedback are later stages.
+The PowerSync–Convex integration is experimental. Cloud synchronization and physical printing require setup and have not yet been verified against the user's deployed services or printer. AI generation, calendar integration, automatic daily planning, scheduled printing, the visual receipt editor, and sound feedback are later stages.
 
 ## Documentation
 

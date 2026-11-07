@@ -1,10 +1,11 @@
-# Deploy as PowerSync sync streams. Authenticate with this Supabase project's JWTs.
+# Convex Auth signs workspace_owner only for the private workspace member.
+# Do not filter on client-provided parameters or the session-specific JWT sub.
 config:
   edition: 3
 streams:
   workspace:
     auto_subscribe: true
     query: |
-      SELECT id, actor_id, clock, created_at, payload
+      SELECT uuid AS id, actor_id, clock, created_at, payload
       FROM workspace_events
-      WHERE owner_id = auth.user_id()
+      WHERE owner_id = auth.parameter('workspace_owner')
