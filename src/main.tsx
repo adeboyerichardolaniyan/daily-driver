@@ -6,6 +6,7 @@ import "@fontsource-variable/geist-mono";
 import "./index.css";
 import "./workspace.css";
 import App from "./App";
+import { initializeEventStore } from "./data/event-store";
 import { db } from "./data/database";
 import { WorkspaceAuth } from "./data/auth";
 
@@ -39,6 +40,7 @@ root.render(
 );
 async function boot() {
   await db.init();
+  await initializeEventStore(db);
   root.render(
     <StrictMode>
       <ErrorBoundary>

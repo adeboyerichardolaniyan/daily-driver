@@ -13,7 +13,15 @@ export default defineSchema({
     clock: v.number(),
     created_at: v.string(),
     payload: v.string(),
-  }).index("by_uuid", ["uuid"]),
+    sequence: v.optional(v.number()),
+  })
+    .index("by_uuid", ["uuid"])
+    .index("by_owner", ["owner_id"])
+    .index("by_owner_sequence", ["owner_id", "sequence"]),
+  workspace_heads: defineTable({
+    owner_id: v.id("users"),
+    sequence: v.number(),
+  }).index("by_owner", ["owner_id"]),
   print_jobs: defineTable({
     uuid: v.string(),
     owner_id: v.id("users"),
@@ -33,5 +41,6 @@ export default defineSchema({
     .index("by_owner", ["owner_id"])
     .index("by_status", ["status"])
     .index("by_worker_status", ["worker_id", "status"]),
+  // Retained for compatibility with the previous deployment; no longer used.
   powersync_checkpoints: defineTable({ last_updated: v.float64() }),
 });

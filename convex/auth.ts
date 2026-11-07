@@ -13,10 +13,4 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       },
     }),
   ],
-  jwt: {
-    customClaims: async (ctx, { userId }) => {
-      const member = await ctx.db.query("app_members").first();
-      return { workspace_owner: member?.user_id === userId ? userId : null };
-    },
-  },
 });

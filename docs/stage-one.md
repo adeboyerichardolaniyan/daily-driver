@@ -23,7 +23,7 @@ The receipt screen provides a basic fixed template, QR links, and explicit manua
 
 ### Event history and reconciliation
 
-`workspace_events` is append-only. Each event has a UUID, actor ID, Lamport clock, timestamp, and validated action payload. A local transaction assigns clocks and records related actions atomically. The server authenticates ownership and accepts idempotent retries without updating an existing event.
+Server `workspace_events` and local `event_log` preserve append-only event content. Each event has a UUID, actor ID, Lamport clock, timestamp, and validated action payload. A local transaction assigns clocks and records related actions atomically. The server authenticates ownership and accepts idempotent retries without updating an existing event.
 
 Events project into tasks and the active focus session in stable order: clock, actor ID, then event ID. Task edits patch only changed fields, so unrelated concurrent edits merge. Concurrent edits of one field converge to a deterministic winner; both versions remain visible in task history and JSON export. This is not a semantic conflict-resolution UI. Invalid hierarchy links become roots instead of hiding tasks or causing recursion.
 
@@ -37,25 +37,31 @@ Opening the workspace waits only for local storage. Authentication refresh and s
 
 ### Backend choice
 
-Convex is the chosen backend, replacing the initial Supabase implementation. Convex Auth handles private email/password sign-in; Convex mutations validate ownership, immutable event uploads, and atomic print-job claims. PowerSync retains the local SQLite database, durable upload queue, and downstream replication. No service has been provisioned or charged by this migration.
+Convex is the cloud backend. Convex Auth handles private email/password sign-in, and ordinary authenticated Convex queries and mutations handle synchronization and printing. **Convex Pro, Streaming Export, and a PowerSync service are not required.** Normal Convex Free plan quotas still apply. The PowerSync JavaScript library remains only as a local SQLite adapter and reactive SQL interface.
 
-The [PowerSync Convex connector](https://docs.powersync.com/configuration/source-db/setup#convex) is experimental. Cloud replication polls Convex approximately once per second, plus network/processing time. Local task edits are immediate; cross-device synchronization is near-real-time, not zero-latency. This needs deployed acceptance before relying on it daily. Convex Auth is also currently beta.
+The initial PowerSync service integration was removed because Convex's [Streaming Export API requires Pro](https://docs.convex.dev/production/integrations/streaming-import-export). No deployment key or replication service is used by the app now.
 
-Client UUIDs remain stable: Convex stores them in `uuid`, and the sync stream selects `uuid AS id`. Server-generated Convex document IDs never replace local task/event IDs. The signed `workspace_owner` JWT claim identifies the private member independently of the session-specific `sub`. Backend functions also check membership on every request. Previously issued sync tokens remain valid until expiry after access revocation; invalidate sessions and rotate signing keys if urgent revocation is required.
+### Direct synchronization and migration
+
+Local edits commit immediately to the local-only `event_log` table with `uploaded = 0`. The synchronizer uploads bounded batches through `workspace:appendEvents`. It marks events uploaded only after server acknowledgement. Retries are idempotent, including after an uncertain network response or process crash.
+
+Each new server event receives a per-owner increasing sequence in the same mutation as its insert. A small reactive `workspace:head` query wakes clients when data changes. Clients fetch indexed pages after their saved sequence and atomically persist events with the new cursor. A thirty-second fallback retries temporary failures; normal updates are driven by local SQL changes and Convex notifications. Multiple windows may repeat requests safely without duplicating events or moving the cursor backward.
+
+Each device first performs a bounded, resumable bootstrap of the owner's existing events. This includes events written before server sequences existed. New events arriving during bootstrap are subsequently replayed through the sequence feed. Incoming events never enter the upload queue. Event IDs with differing content stop synchronization with an error rather than overwriting history.
+
+On launch, legacy local `workspace_events` rows are copied into `event_log` without clearing the old table or queue. Existing task/focus IDs and account bindings are preserved. Legacy copies remain available for recovery; new writes use `event_log`. Restart all old app windows after updating. Storage/history compaction is future work.
 
 ## Set up cross-device synchronization
 
-1. Run `npm run convex:dev` and choose/create the dedicated Convex project/development deployment. The CLI writes `CONVEX_DEPLOYMENT` and `VITE_CONVEX_URL` into `.env.local`, deploys the functions, and refreshes `convex/_generated`. The checked-in bindings allow local-only builds without a deployment. Keep `convex dev` running while changing backend code.
-2. Follow [Convex Auth setup](https://labs.convex.dev/auth/setup), running `npx @convex-dev/auth` against that deployment to configure `JWT_PRIVATE_KEY`, `JWKS`, and `SITE_URL`. The repository already contains `auth.ts`, `auth.config.ts`, `http.ts`, and auth schema tables; preserve the private sign-in restriction if the setup tool offers file edits. Use the real HTTPS browser app URL as `SITE_URL`.
-3. In the authenticated Convex dashboard, run the **internal** `admin:provisionOwner` action with your email and a strong password (at least 12 characters). Do not put credentials in shell history or tracked files. It creates the password account and singleton workspace membership. Public sign-up/reset flows are disabled. This admin action is unavailable to public clients. For password recovery, use Convex Auth's administrative credential-reset API; recovery UI is not implemented.
-4. Create a PowerSync instance with the Convex deployment URL and a deployment key with the documented `deployment:data:view` permission. Store that key only in PowerSync's secret configuration. The required `powersync_checkpoints` table and `powersync_checkpoints:createCheckpoint` mutation are already included. The checkpoint mutation is public per PowerSync's protocol; it only advances a singleton timestamp and exposes no workspace data.
-5. Configure PowerSync custom JWT authentication with the Convex Auth JWKS URL `https://YOUR-DEPLOYMENT.convex.site/.well-known/jwks.json` and audience `convex`. See [custom authentication](https://docs.powersync.com/configuration/auth/custom). Deploy `powersync/sync-config.yaml`. It replicates only events belonging to the signed `workspace_owner` claim. Print jobs stay on Convex and are never included in this stream.
-6. Set `VITE_POWERSYNC_URL` and `VITE_PUBLIC_APP_URL` alongside `VITE_CONVEX_URL` in `.env.local`. The public app URL must be the real HTTPS origin your phone can reach. No deploy key, signing key, or worker secret belongs in `VITE_*`.
-7. Rebuild/restart the app. In Settings & connections, sign in using the provisioned account. Sign in with the same account/deployment on each device. Existing unbound local events upload automatically. Token refresh reconnects sync without clearing local data. Local startup does not wait for authentication.
-8. For production, deploy with `npm run convex:deploy`, configure the production auth keys/owner/worker secret and matching PowerSync instance, then build the app with the production public URLs. A development account/database is separate from production.
-9. If using custom Convex/PowerSync hosts, add their exact trusted origins to `connect-src` in `src-tauri/tauri.conf.json` and rebuild. Do not use an unrestricted wildcard.
+1. Run `npm run convex:dev` against the dedicated development deployment. The CLI writes `CONVEX_DEPLOYMENT` and `VITE_CONVEX_URL` into `.env.local` and refreshes generated bindings. Keep it running while changing backend code.
+2. Follow [Convex Auth setup](https://labs.convex.dev/auth/setup), running `npx @convex-dev/auth` against that deployment to configure signing keys and `SITE_URL`. For local development, the web server URL is `http://127.0.0.1:1420`. The repository already contains the private auth configuration; preserve its sign-in restriction if the setup tool offers file edits.
+3. In the authenticated Convex dashboard, run the **internal** `admin:provisionOwner` action with your email and a strong password (at least 12 characters). It creates the password account and singleton workspace membership. Public sign-up/reset flows are disabled. Recovery UI is not implemented.
+4. Set `VITE_CONVEX_URL` in `.env.local`. For phone receipt links, set `VITE_PUBLIC_APP_URL` to the real HTTPS browser app origin. Remove any obsolete `VITE_POWERSYNC_URL`; it is ignored. You can delete the unused PowerSync instance and revoke its deployment key in the respective dashboards.
+5. Run `npm run dev` or rebuild/restart the Mac app. In Settings & connections, sign in using the provisioned account. Use the same account and deployment on every device. Existing unbound local events upload automatically. Local startup does not wait for authentication.
+6. For production, deploy with `npm run convex:deploy`, configure production auth keys/owner/worker secret, and build the app with its production public URLs. Development and production workspaces are separate.
+7. Custom Convex domains require their exact trusted origins in `connect-src` in `src-tauri/tauri.conf.json` and a rebuild.
 
-The local database binds to its first Convex account **and deployment** and refuses another. No local history is deleted. A workspace previously connected to Supabase is deliberately not silently rebound: export its history and perform an explicit migration before connecting to Convex. This repository had no configured cloud deployment when the backend changed. Unbound local-only workspaces need no data migration.
+The local database binds to its first Convex account and deployment and refuses another. No local history is deleted. A previously Supabase-bound workspace requires an explicit export/migration rather than silently rebinding. Existing Convex-bound workspaces retain their identity through the direct-sync update.
 
 ### Cloud acceptance still required
 
@@ -93,17 +99,17 @@ For unattended operation, register the command as a per-user macOS LaunchAgent w
 
 ## Verification performed
 
-Convex migration checks: 23 unit tests, eight production browser tests across Chromium/WebKit, TypeScript, Rust compilation, and a rebuilt unsigned debug macOS bundle pass. Authentication lifecycle tests cover account/deployment binding and ignoring late identity results after cleanup. Live Convex/PowerSync acceptance remains outstanding.
+Convex migration checks: 30 unit tests, eight production browser tests across Chromium/WebKit, TypeScript, Rust compilation, and a rebuilt unsigned debug macOS bundle pass. Direct-sync tests cover durable retries, bootstrap resumption, cursor commits, cleanup, account binding, and legacy SQLite migration. The functions were deployed to `harmless-dolphin-909`, and the bootstrap query was exercised with an administrator-supplied owner test identity. Real sign-in and live multi-device acceptance remain outstanding.
 
 - TypeScript checks and production web build.
 - Rust compilation and a packaged, unsigned debug macOS app build.
 - Actual macOS app launch, example creation, timer start, detached focus window, and pause propagation back to the main window.
 - Chromium and WebKit browser tests for local task persistence, offline edits, multi-window focus, mobile hierarchy editing, and a fully offline reload of the production app shell.
 - Domain tests for duplicate delivery, concurrent edits, preserved completion, hierarchy cycles, and focus-session ordering.
-- Convex in-memory tests executing the actual functions for ownership, event validation, atomic collision rejection, idempotent retries, exclusive job claiming, worker authentication, and terminal/uncertain print outcomes. These are not deployed Convex or PowerSync integration tests.
+- Convex in-memory tests executing the actual functions for ownership, event validation, atomic collision rejection, idempotent retries, exclusive job claiming, worker authentication, and terminal/uncertain print outcomes. These complement deployment verification but do not replace live multi-device tests.
 - Receipt rendering tests for text escaping and stable credential-free HTTPS QR links.
 
-No deployed sync service or physical printer was available for this implementation session. Stage 1 is not fully accepted until the cloud and hardware checks above pass.
+The development backend is deployed. Stage 1 is not fully accepted until real cross-device synchronization and the physical printer checks above pass.
 
 ## Deferred features
 

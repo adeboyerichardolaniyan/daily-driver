@@ -183,3 +183,55 @@ describe("private authentication", () => {
     ).rejects.toThrow("Public registration is disabled");
   });
 });
+
+describe("direct synchronization feed", () => {
+  it("assigns ordered cursors once despite retries and bounds each page", async () => {
+    const { owner } = await setup();
+    const events = Array.from({ length: 25 }, (_, i) => ({
+      ...event,
+      id: `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`,
+      clock: i + 1,
+    }));
+    await owner.mutation(api.workspace.appendEvents, { events });
+    await owner.mutation(api.workspace.appendEvents, { events });
+    expect(await owner.query(api.workspace.head, {})).toBe(25);
+    const first = await owner.query(api.workspace.changes, { after: 0 });
+    expect(first).toHaveLength(20);
+    expect(first.map((e) => e.sequence)).toEqual(
+      Array.from({ length: 20 }, (_, i) => i + 1),
+    );
+    expect(
+      await owner.query(api.workspace.changes, { after: 20 }),
+    ).toHaveLength(5);
+    expect(await owner.query(api.workspace.changes, { after: 25 })).toEqual([]);
+  });
+  it("bootstraps legacy events without a sequence and rejects outsiders", async () => {
+    const { t, owner, ownerId, outsider } = await setup();
+    const { id, ...fields } = event;
+    await t.run((ctx) =>
+      ctx.db.insert("workspace_events", {
+        ...fields,
+        uuid: id,
+        owner_id: ownerId,
+      }),
+    );
+    const page = await owner.query(api.workspace.bootstrapPage, {
+      paginationOpts: { cursor: null, numItems: 50 },
+    });
+    expect(page.page).toEqual([event]);
+    expect(page.isDone).toBe(true);
+    for (const client of [t, outsider]) {
+      await expect(
+        client.query(api.workspace.bootstrapPage, {
+          paginationOpts: { cursor: null, numItems: 50 },
+        }),
+      ).rejects.toThrow("access");
+      await expect(
+        client.query(api.workspace.changes, { after: 0 }),
+      ).rejects.toThrow("access");
+      await expect(client.query(api.workspace.head, {})).rejects.toThrow(
+        "access",
+      );
+    }
+  });
+});

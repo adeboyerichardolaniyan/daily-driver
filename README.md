@@ -29,10 +29,10 @@ npm run tauri -- build --debug --bundles app
 - Focus timer, pause/resume, switching, later-today deferral, immersive view, and a separate focus window.
 - Same-device window continuity, append-only edit history, and JSON export.
 - Responsive browser interface and cached production app shell for offline reloads.
-- Convex Auth, owner-restricted Convex functions, and a PowerSync connector with offline upload persistence.
+- Convex Auth and direct reactive synchronization with a durable local upload queue.
 - Receipt preview, stable task QR links, print queue, and a persistent Mac mini worker using the macOS print spooler.
 
-The PowerSync–Convex integration is experimental. Cloud synchronization and physical printing require setup and have not yet been verified against the user's deployed services or printer. AI generation, calendar integration, automatic daily planning, scheduled printing, the visual receipt editor, and sound feedback are later stages.
+Cloud synchronization uses ordinary Convex queries/mutations and works on the Free plan within its quotas. The PowerSync library is used only for local SQLite; no PowerSync service is required. Cloud synchronization and physical printing require setup and have not yet been verified against the user's deployed services or printer. AI generation, calendar integration, automatic daily planning, scheduled printing, the visual receipt editor, and sound feedback are later stages.
 
 ## Documentation
 

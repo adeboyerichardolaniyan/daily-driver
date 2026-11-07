@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useQuery, useStatus } from "@powersync/react";
+import { useQuery } from "@powersync/react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -73,12 +73,10 @@ export default function App() {
     isLoading,
     error: queryError,
   } = useQuery<WorkspaceEvent>(
-    "SELECT * FROM workspace_events ORDER BY clock, actor_id, id",
+    "SELECT * FROM event_log ORDER BY clock, actor_id, id",
   );
   const workspace = useMemo(() => projectWorkspace(events), [events]);
-  const status = useStatus();
-  const syncError = status.uploadError || status.downloadError;
-  const { account, error: connectionError } = useConnection();
+  const { account, connected, error: connectionError } = useConnection();
   const [view, setView] = useState<View>("today");
   const [projectId, setProjectId] = useState<string | null>(null);
   const [selection, setSelection] = useState<string | null>(() =>
@@ -292,11 +290,9 @@ export default function App() {
       </nav>
       <div className="sidebar-bottom">
         <div className="local-status">
-          <span
-            className={`status-dot ${status.connected ? "connected" : ""}`}
-          />
+          <span className={`status-dot ${connected ? "connected" : ""}`} />
           <span>
-            {status.connected
+            {connected
               ? "Sync connected"
               : account
                 ? "Saved locally · reconnecting"
@@ -407,13 +403,11 @@ export default function App() {
           </header>
           {(error ||
             connectionError ||
-            syncError ||
             queryError ||
             workspace.invalidCount > 0) && (
             <div role="alert" className="error-banner">
               {error ||
                 connectionError ||
-                syncError?.message ||
                 queryError?.message ||
                 "Some history entries could not be read. Export your history before making further changes."}
               <Button

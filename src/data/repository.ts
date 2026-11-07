@@ -15,12 +15,12 @@ export class WorkspaceRepository {
     const parsed = actions.map((action) => actionSchema.parse(action));
     await this.db.writeTransaction(async (tx) => {
       const row = await tx.get<{ clock: number }>(
-        "SELECT COALESCE(MAX(clock), 0) AS clock FROM workspace_events",
+        "SELECT COALESCE(MAX(clock), 0) AS clock FROM event_log",
       );
       let clock = row.clock;
       for (const action of parsed) {
         await tx.execute(
-          "INSERT INTO workspace_events (id, actor_id, clock, created_at, payload) VALUES (?, ?, ?, ?, ?)",
+          "INSERT INTO event_log (id, actor_id, clock, created_at, payload, uploaded) VALUES (?, ?, ?, ?, ?, 0)",
           [
             crypto.randomUUID(),
             this.actor,
@@ -106,7 +106,7 @@ export class WorkspaceRepository {
   }
   async exportEvents(): Promise<WorkspaceEvent[]> {
     return this.db.getAll(
-      "SELECT * FROM workspace_events ORDER BY clock, actor_id, id",
+      "SELECT * FROM event_log ORDER BY clock, actor_id, id",
     );
   }
 }

@@ -1,87 +1,123 @@
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
-
-const mocks = vi.hoisted(() => {
-  const tx = { getOptional: vi.fn(), execute: vi.fn() };
-  return {
-    tx,
-    db: {
-      disconnect: vi.fn(),
-      connect: vi.fn(),
-      writeTransaction: vi.fn(
-        async (work: (transaction: typeof tx) => Promise<void>) => work(tx),
-      ),
+import { describe, expect, it, vi } from "vitest";
+import {
+  Replicator,
+  type SyncStore,
+  type SyncTransport,
+} from "../src/data/replicator";
+import type { WorkspaceEvent } from "../src/domain/workspace";
+const event: WorkspaceEvent = {
+  id: "event",
+  actor_id: "laptop",
+  clock: 1,
+  created_at: "2026-11-07T00:00:00Z",
+  payload: "{}",
+};
+function fixture() {
+  const settings = new Map<string, string>();
+  const pending: WorkspaceEvent[] = [event];
+  const received: WorkspaceEvent[] = [];
+  const store: SyncStore = {
+    setting: async (key) => settings.get(key) ?? null,
+    pending: async () => [...pending],
+    acknowledge: async (events) => {
+      events.forEach((e) =>
+        pending.splice(
+          pending.findIndex((p) => p.id === e.id),
+          1,
+        ),
+      );
     },
-    client: { query: vi.fn(), mutation: vi.fn() },
+    receive: async (events, checkpoint) => {
+      received.push(...events);
+      if (checkpoint) settings.set(checkpoint.key, checkpoint.value);
+    },
   };
-});
-vi.mock("../src/data/database", () => ({ db: mocks.db }));
-vi.mock("convex/react", () => ({
-  ConvexReactClient: class {
-    query = mocks.client.query;
-    mutation = mocks.client.mutation;
-  },
-}));
-let cleanup: (() => void) | undefined;
-beforeEach(() => {
-  vi.resetModules();
-  vi.clearAllMocks();
-  vi.stubEnv("VITE_CONVEX_URL", "https://test.convex.cloud");
-  vi.stubEnv("VITE_POWERSYNC_URL", "https://sync.example");
-  mocks.tx.getOptional.mockResolvedValue(null);
-  mocks.client.query.mockResolvedValue({ id: "owner", label: "Owner" });
-});
-afterEach(async () => {
-  cleanup?.();
-  cleanup = undefined;
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  vi.unstubAllEnvs();
-});
-it("binds the local workspace to both account and deployment before connecting", async () => {
-  const sync = await import("../src/data/sync");
-  cleanup = sync.attachSync("token", true);
-  await vi.waitFor(() => expect(mocks.db.connect).toHaveBeenCalledOnce());
-  expect(mocks.tx.execute).toHaveBeenCalledWith(expect.any(String), [
-    "account",
-    "convex:https://test.convex.cloud:owner",
-  ]);
-  expect(sync.connectedClient()).toBe(sync.convex);
-});
-it("does not connect or overwrite an existing different account binding", async () => {
-  mocks.tx.getOptional.mockResolvedValue({ value: "original-account" });
-  const sync = await import("../src/data/sync");
-  cleanup = sync.attachSync("token", true);
-  await vi.waitFor(() => expect(mocks.tx.getOptional).toHaveBeenCalledOnce());
-  expect(mocks.db.connect).not.toHaveBeenCalled();
-  expect(mocks.tx.execute).not.toHaveBeenCalled();
-  expect(() => sync.connectedClient()).toThrow("Connect your workspace");
-});
-it("ignores a late identity result after authentication cleanup", async () => {
-  let resolveAccount!: (value: { id: string; label: string }) => void;
-  mocks.client.query.mockReturnValue(
-    new Promise((resolve) => {
-      resolveAccount = resolve;
-    }),
-  );
-  const sync = await import("../src/data/sync");
-  cleanup = sync.attachSync("token", true);
-  await vi.waitFor(() => expect(mocks.client.query).toHaveBeenCalledOnce());
-  cleanup();
-  cleanup = undefined;
-  resolveAccount({ id: "owner", label: "Owner" });
-  await vi.waitFor(() => expect(mocks.db.disconnect).toHaveBeenCalledTimes(2));
-  expect(mocks.db.connect).not.toHaveBeenCalled();
-  expect(mocks.tx.execute).not.toHaveBeenCalled();
-});
-it("uses the refreshed token expiration and rejects malformed credentials", async () => {
-  const sync = await import("../src/data/sync");
-  const token = `header.${btoa(JSON.stringify({ exp: 2000000000 }))}.signature`;
-  const connector = new sync.Connector(sync.convex!, token);
-  expect(await connector.fetchCredentials()).toEqual({
-    endpoint: "https://sync.example",
-    token,
-    expiresAt: new Date(2000000000000),
+  const transport: SyncTransport = {
+    bootstrap: vi.fn(async () => ({
+      page: [],
+      continueCursor: "",
+      isDone: true,
+    })),
+    upload: vi.fn(async () => null),
+    changes: vi.fn(async () => []),
+  };
+  const report = vi.fn();
+  const replicator = new Replicator(store, transport, report);
+  return { settings, pending, received, store, transport, report, replicator };
+}
+describe("durable direct sync", () => {
+  it("retains an upload after network failure and retries it", async () => {
+    const f = fixture();
+    vi.mocked(f.transport.upload).mockRejectedValueOnce(new Error("offline"));
+    await f.replicator.request();
+    expect(f.pending).toEqual([event]);
+    expect(f.report).toHaveBeenLastCalledWith("offline");
+    await f.replicator.request();
+    expect(f.pending).toEqual([]);
+    expect(f.transport.upload).toHaveBeenCalledTimes(2);
+    expect(f.report).toHaveBeenLastCalledWith(null);
   });
-  await expect(
-    new sync.Connector(sync.convex!, "malformed").fetchCredentials(),
-  ).rejects.toThrow("invalid");
+  it("resumes interrupted bootstrap from its durable cursor", async () => {
+    const f = fixture();
+    vi.mocked(f.transport.bootstrap)
+      .mockResolvedValueOnce({
+        page: [event],
+        continueCursor: "page-two",
+        isDone: false,
+      })
+      .mockRejectedValueOnce(new Error("offline"));
+    await f.replicator.request();
+    expect(f.settings.get("direct_bootstrap")).toBe("page-two");
+    await f.replicator.request();
+    expect(f.transport.bootstrap).toHaveBeenLastCalledWith("page-two");
+    expect(f.settings.get("direct_bootstrap")).toBe("done");
+  });
+  it("downloads later pages using committed sequence cursors", async () => {
+    const f = fixture();
+    f.settings.set("direct_bootstrap", "done");
+    vi.mocked(f.transport.changes)
+      .mockResolvedValueOnce([{ ...event, sequence: 20 }])
+      .mockResolvedValueOnce([{ ...event, id: "next", sequence: 21 }]);
+    await f.replicator.request();
+    expect(f.transport.changes).toHaveBeenNthCalledWith(1, 0);
+    expect(f.transport.changes).toHaveBeenNthCalledWith(2, 20);
+    expect(f.transport.changes).toHaveBeenNthCalledWith(3, 21);
+    expect(f.settings.get("direct_cursor")).toBe("21");
+    expect(f.transport.bootstrap).not.toHaveBeenCalled();
+  });
+  it("does not advance the cursor when local persistence fails", async () => {
+    const f = fixture();
+    f.settings.set("direct_bootstrap", "done");
+    vi.mocked(f.transport.changes).mockResolvedValue([
+      { ...event, sequence: 1 },
+    ]);
+    f.store.receive = async () => {
+      throw new Error("disk full");
+    };
+    await f.replicator.request();
+    expect(f.settings.has("direct_cursor")).toBe(false);
+    expect(f.report).toHaveBeenLastCalledWith("disk full");
+  });
+  it("ignores an in-flight download after cleanup", async () => {
+    const f = fixture();
+    let finish!: (v: {
+      page: WorkspaceEvent[];
+      continueCursor: string;
+      isDone: boolean;
+    }) => void;
+    vi.mocked(f.transport.bootstrap).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const running = f.replicator.request();
+    await vi.waitFor(() => expect(f.transport.bootstrap).toHaveBeenCalled());
+    f.replicator.stop();
+    finish({ page: [event], continueCursor: "", isDone: true });
+    await running;
+    expect(f.received).toEqual([]);
+    expect(f.transport.upload).not.toHaveBeenCalled();
+    expect(f.settings.size).toBe(0);
+  });
 });

@@ -1,9 +1,11 @@
-import { createContext, useContext, useEffect, type ReactNode } from "react";
 import {
-  ConvexAuthProvider,
-  useAuthActions,
-  useAuthToken,
-} from "@convex-dev/auth/react";
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  type ReactNode,
+} from "react";
+import { ConvexAuthProvider, useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "convex/react";
 import { attachSync, convex } from "./sync";
 
@@ -13,19 +15,17 @@ const LoginContext = createContext<Login>(async () => {
 });
 export const useSignIn = () => useContext(LoginContext);
 function AuthBridge({ children }: { children: ReactNode }) {
-  const token = useAuthToken();
   const { isAuthenticated } = useConvexAuth();
   const { signIn } = useAuthActions();
   // This effect owns an external database connection and cleans it up.
-  useEffect(() => attachSync(token, isAuthenticated), [token, isAuthenticated]);
+  useEffect(() => attachSync(isAuthenticated), [isAuthenticated]);
+  const login = useCallback<Login>(
+    (email, password) =>
+      signIn("password", { email, password, flow: "signIn" }),
+    [signIn],
+  );
   return (
-    <LoginContext.Provider
-      value={(email, password) =>
-        signIn("password", { email, password, flow: "signIn" })
-      }
-    >
-      {children}
-    </LoginContext.Provider>
+    <LoginContext.Provider value={login}>{children}</LoginContext.Provider>
   );
 }
 export function WorkspaceAuth({ children }: { children: ReactNode }) {
