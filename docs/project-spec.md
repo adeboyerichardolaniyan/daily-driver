@@ -1,8 +1,9 @@
 # Daily Driver — Project Specification
 
-Status: Product baseline for implementation and code review  
+Status: Product baseline for implementation
+
 Date: 2026-11-06  
-Audience: Implementers and reviewers
+Audience: Implementers
 
 ## 1. Purpose
 
@@ -12,7 +13,7 @@ The app must work across a personal Mac laptop, a work Mac laptop, and a phone b
 
 **Core principle: AI prepares; the user decides.** The user should have a useful starting point without losing control of tasks, commitments, or plans.
 
-This document distinguishes confirmed product requirements from proposed implementation choices. Review changes against the requirements; resolve open technical decisions through documented experiments rather than treating recommendations as verified integrations.
+This document distinguishes confirmed product requirements from proposed implementation choices. Resolve open technical decisions through documented experiments rather than treating recommendations as verified integrations.
 
 ## 2. User and scope
 
@@ -206,11 +207,11 @@ The detailed schema is an implementation deliverable. Keep domain behavior indep
 
 All stages are part of the intended product. Sequencing does not remove later-stage requirements.
 
-## 8. Code review and acceptance criteria
+## 8. Acceptance criteria
 
-Reviews should identify the requirement a change implements, its user-visible behavior, its failure/recovery behavior, and the evidence supporting it. A change need not implement the whole product, but must not contradict the product baseline.
+Implementation should satisfy the following behavior and recovery criteria, with validation appropriate to each feature.
 
-### Required review checks by affected area
+### Validation criteria by affected area
 
 - **Local-first behavior:** no network dependency for ordinary local task edits; local writes survive restart; queued operations recover after reconnection.
 - **Synchronization:** test two clients, concurrent changes, deleted items, repeated delivery, and focus-session conflicts. Confirm unrelated edits remain intact.
