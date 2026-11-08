@@ -1,6 +1,6 @@
 {
   "name": "daily-driver",
-  "version": "0.1.0",
+  "version": "0.2.2",
   "description": "Local-first tasks, focus, and daily briefings.",
   "directories": {
     "doc": "docs"
@@ -18,7 +18,15 @@
     "print:worker": "node --env-file-if-exists=.env.worker --import tsx scripts/print-worker.ts",
     "test:offline": "TEST_PRODUCTION=1 playwright test",
     "convex:dev": "convex dev",
-    "convex:deploy": "convex deploy"
+    "convex:deploy": "convex deploy",
+    "print:preview": "node --env-file-if-exists=.env.worker --import tsx scripts/print-test.ts",
+    "print:check": "node --env-file-if-exists=.env.worker --import tsx scripts/print-test.ts --check",
+    "print:service": "node --import tsx scripts/print-service.ts",
+    "print:diagnose": "node --env-file-if-exists=.env.worker --import tsx scripts/print-diagnose.ts",
+    "test:security-browser": "npm run build && vitest run --config vitest.security.config.ts",
+    "desktop:release": "node --import tsx scripts/desktop-release.ts",
+    "prebuild": "node --import tsx scripts/restore-desktop-release.ts",
+    "postbuild": "node --import tsx scripts/stage-desktop-release.ts"
   },
   "repository": {
     "type": "git",
@@ -33,18 +41,27 @@
   },
   "homepage": "https://github.com/adeboyerichardolaniyan/daily-driver#readme",
   "dependencies": {
+    "@ai-sdk/openai": "^4.0.110",
     "@auth/core": "^0.41.3",
+    "@convex-dev/agent": "^0.7.9",
     "@convex-dev/auth": "^0.0.96",
-    "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@js-temporal/polyfill": "^0.5.1",
+    "@noble/hashes": "^2.4.0",
     "@powersync/common": "^2.5.0",
     "@powersync/react": "^2.2.0",
     "@powersync/web": "^2.6.0",
     "@tauri-apps/api": "^2.12.4",
+    "@tauri-apps/plugin-process": "^2.4.0",
+    "@tauri-apps/plugin-updater": "^2.14.1",
+    "ai": "^7.0.164",
     "class-variance-authority": "^0.7.1",
+    "cmdk": "^1.1.1",
     "cn": "^0.5.2",
     "convex": "^1.49.0",
     "lucide-react": "^1.70.0",
+    "node-ical": "^0.27.5",
     "qrcode": "^1.5.4",
     "radix-ui": "^1.8.1",
     "react": "^19.3.1",

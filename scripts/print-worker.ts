@@ -1,25 +1,36 @@
-import { ConvexHttpClient } from "convex/browser";
+import { workerConnection, connectionMessage } from "./worker-connection";
 import { api } from "../convex/_generated/api";
-import { chromium } from "@playwright/test";
 import { DatabaseSync } from "node:sqlite";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, chmod } from "node:fs/promises";
 import { resolve } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { receiptSchema, renderReceipt } from "../src/domain/receipt";
+import { receiptSchema } from "../src/domain/receipt";
+import {
+  checkPrinter,
+  printerProfile,
+  printArguments,
+  renderReceiptFile,
+  receiptFilePath,
+} from "./printer-output";
 
+process.umask(0o077);
 const execute = promisify(execFile);
 const required = (name: string) => {
   const value = process.env[name];
   if (!value) throw new Error(`Missing ${name}. See docs/stage-one.md.`);
   return value;
 };
-const url = required("CONVEX_URL");
-const secret = required("PRINT_WORKER_SECRET");
-const printer = required("PRINTER_NAME");
-const worker = process.env.WORKER_ID || "workstation-mac-mini";
+const { client, secret, worker } = workerConnection();
+const output = process.env.PRINT_MODE || "pdf";
+if (output !== "pdf" && output !== "printer")
+  throw new Error("PRINT_MODE must be pdf or printer.");
+const printer = output === "printer" ? required("PRINTER_NAME") : "";
+const profile = printerProfile(process.env.PRINTER_PROFILE);
+if (output === "printer") await checkPrinter(printer);
 const directory = resolve(process.env.PRINT_STATE_DIR || ".print-worker");
 await mkdir(directory, { recursive: true, mode: 0o700 });
+await chmod(directory, 0o700);
 // An exclusive lock on a separate SQLite file releases automatically on crash.
 const lock = new DatabaseSync(resolve(directory, "worker-lock.sqlite"));
 try {
@@ -31,10 +42,6 @@ const journal = new DatabaseSync(resolve(directory, "journal.sqlite"));
 journal.exec(
   "CREATE TABLE IF NOT EXISTS attempts (id TEXT PRIMARY KEY, status TEXT NOT NULL, detail TEXT, reported INTEGER NOT NULL DEFAULT 0)",
 );
-const client = new ConvexHttpClient(url);
-// No raw socket is exposed. All jobs are obtained over authenticated outbound HTTPS.
-if (!url.startsWith("https://") && !url.startsWith("http://127.0.0.1:"))
-  throw new Error("Worker requires HTTPS (or a local development backend).");
 let stopping = false;
 process.on("SIGINT", () => {
   stopping = true;
@@ -49,7 +56,12 @@ async function finish(id: string, status: string, detail: string | null) {
       "UPDATE attempts SET status = ?, detail = ?, reported = 0 WHERE id = ?",
     )
     .run(status, detail, id);
-  if (status !== "dispatched" && status !== "failed" && status !== "uncertain")
+  if (
+    status !== "dispatched" &&
+    status !== "rendered" &&
+    status !== "failed" &&
+    status !== "uncertain"
+  )
     throw new Error("Invalid journal outcome.");
   await client.mutation(api.printing.finish, {
     secret,
@@ -82,9 +94,17 @@ async function reconcile() {
       row.detail === null ? null : String(row.detail),
     );
 }
-await reconcile();
-console.log(`Print worker ready (${worker}). Waiting for jobs.`);
-const browser = await chromium.launch({ headless: true });
+try {
+  await reconcile();
+} catch (error) {
+  journal.close();
+  lock.close();
+  console.error(`Worker startup failed: ${connectionMessage(error, secret)}`);
+  process.exit(1);
+}
+console.log(
+  `Print worker ready (${worker}). ${output} mode. Waiting for jobs.`,
+);
 try {
   while (!stopping) {
     try {
@@ -97,7 +117,11 @@ try {
           String(row.status),
           row.detail === null ? null : String(row.detail),
         );
-      const job = await client.mutation(api.printing.claim, { secret, worker });
+      const job = await client.mutation(api.printing.claim, {
+        secret,
+        worker,
+        output,
+      });
       if (job) {
         const existing = journal
           .prepare("SELECT status FROM attempts WHERE id = ?")
@@ -114,37 +138,29 @@ try {
           .prepare("INSERT INTO attempts(id,status) VALUES (?, 'processing')")
           .run(job.id);
         let dispatchStarted = false;
-        const page = await browser.newPage();
         try {
           const snapshot = receiptSchema.parse(job.snapshot);
-          // The renderer escapes all text and includes only inline QR images.
-          await page.route("**/*", (route) => route.abort());
-          await page.setContent(await renderReceipt(snapshot), {
-            waitUntil: "load",
-          });
-          const height = await page.evaluate(() =>
-            Math.ceil(document.body.scrollHeight),
-          );
-          const pdfPath = resolve(directory, `${job.id}.pdf`);
-          await page.pdf({
-            path: pdfPath,
-            width: "80mm",
-            height: `${height + 32}px`,
-            margin: { top: "4mm", bottom: "4mm", left: "4mm", right: "4mm" },
-            printBackground: true,
-          });
+          const pdfPath = receiptFilePath(directory, job.id, "pdf");
+          await renderReceiptFile(snapshot, pdfPath, profile);
           await writeFile(
-            resolve(directory, `${job.id}.json`),
+            receiptFilePath(directory, job.id, "json"),
             JSON.stringify(snapshot),
             { mode: 0o600 },
           );
+          if (output === "pdf") {
+            await finish(
+              job.id,
+              "rendered",
+              "PDF saved on the worker. Nothing was sent to a printer.",
+            );
+            console.log(`Saved PDF ${pdfPath}.`);
+            continue;
+          }
           // Once lp begins, even a failed/timeout result may have reached CUPS.
           dispatchStarted = true;
-          await execute(
-            "/usr/bin/lp",
-            ["-d", printer, "-o", "fit-to-page", pdfPath],
-            { timeout: 30000 },
-          );
+          await execute("/usr/bin/lp", printArguments(printer, pdfPath), {
+            timeout: 30000,
+          });
           await finish(
             job.id,
             "dispatched",
@@ -152,6 +168,12 @@ try {
           );
           console.log(`Dispatched job ${job.id}.`);
         } catch (error) {
+          // A reporting failure must not overwrite a durable terminal outcome.
+          // Reconciliation will resend that same outcome on the next loop.
+          const recorded = journal
+            .prepare("SELECT status FROM attempts WHERE id = ?")
+            .get(job.id);
+          if (recorded && recorded.status !== "processing") throw error;
           const outcome = dispatchStarted ? "uncertain" : "failed";
           await finish(
             job.id,
@@ -159,22 +181,17 @@ try {
             dispatchStarted
               ? "The spooler may have accepted this job. Check the printer before explicitly reprinting."
               : error instanceof Error
-                ? error.message.slice(0, 500)
+                ? connectionMessage(error, secret).slice(0, 500)
                 : "Receipt rendering failed.",
           );
-        } finally {
-          await page.close();
         }
       }
     } catch (error) {
-      console.error(
-        error instanceof Error ? error.message : "Worker connection failed.",
-      );
+      console.error(connectionMessage(error, secret));
     }
     if (!stopping) await new Promise((resolve) => setTimeout(resolve, 5000));
   }
 } finally {
-  await browser.close();
   journal.close();
   lock.close();
 }

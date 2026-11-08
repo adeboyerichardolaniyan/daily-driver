@@ -1,12 +1,13 @@
+import { ManageData } from "./manage-data";
+import type { Workspace } from "@/domain/workspace";
+import { AppUpdates } from "./app-updates";
+import { PlanningSettings } from "./planning-settings";
+import type {
+  PlanningSettings as Preferences,
+  CalendarSnapshot,
+} from "@/domain/planning";
 import { useState, type FormEvent } from "react";
-import {
-  Cloud,
-  Database,
-  Download,
-  Laptop,
-  Printer,
-  ShieldCheck,
-} from "lucide-react";
+import { Cloud, Database, Download, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { syncConfigured } from "@/data/sync";
@@ -14,11 +15,17 @@ import { useSignIn } from "@/data/auth";
 import type { WorkspaceRepository } from "@/data/repository";
 
 export function Connections({
+  workspace,
   account,
+  planningSettings,
+  calendars,
   repository,
   run,
 }: {
+  workspace: Workspace;
   account: string | null;
+  planningSettings: Preferences;
+  calendars: CalendarSnapshot[];
   repository: WorkspaceRepository;
   run: (work: () => Promise<unknown>) => void;
 }) {
@@ -60,15 +67,14 @@ export function Connections({
   }
   return (
     <div className="settings-stack">
+      <AppUpdates />
+      <ManageData workspace={workspace} repository={repository} />
       <section className="settings-section">
         <div className="section-icon">
           <Database />
         </div>
-        <h2>Your work lives here first.</h2>
-        <p>
-          Tasks and focus sessions save on this device. You can keep working
-          without an internet connection.
-        </p>
+        <h2>Local storage</h2>
+        <p>Tasks and focus sessions are available offline.</p>
         <div className="settings-actions">
           <Button variant="outline" onClick={() => run(exportData)}>
             <Download />
@@ -109,10 +115,7 @@ export function Connections({
           </>
         ) : syncConfigured ? (
           <form className="form-stack connection-form" onSubmit={login}>
-            <p>
-              Use your private Daily Driver account. This connects your local
-              workspace to your other devices.
-            </p>
+            <p>Sign in to sync across your devices.</p>
             <label>
               Email
               <Input
@@ -139,37 +142,29 @@ export function Connections({
           </form>
         ) : (
           <>
-            <p>
-              Cross-device sync is not configured yet. Your work is being saved
-              locally; no cloud connection is being simulated.
-            </p>
+            <p>Sync isn’t configured. Your work is saved on this device.</p>
             <p className="setup-note">
               Setup instructions: <code>docs/stage-one.md</code>
             </p>
           </>
         )}
       </section>
+      <PlanningSettings
+        settings={planningSettings}
+        sources={calendars}
+        repository={repository}
+        account={account}
+      />
       <section className="settings-section">
         <div className="section-heading">
           <Printer />
           <h2>Mac mini printing</h2>
         </div>
-        <p>
-          The print worker runs on your workstation and collects approved print
-          jobs. Connect your workspace, configure the worker, then send a test
-          briefing.
-        </p>
+        <p>Connect the printer to your Mac mini and start the print worker.</p>
         <p className="setup-note">
           Worker command: <code>npm run print:worker</code>
         </p>
       </section>
-      <div className="connection-footnote">
-        <ShieldCheck size={16} />
-        <span>
-          Your QR codes contain task links, never account credentials.
-        </span>
-        <Laptop size={16} />
-      </div>
     </div>
   );
 }

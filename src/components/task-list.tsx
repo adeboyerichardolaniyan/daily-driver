@@ -1,3 +1,4 @@
+import { isToday } from "@/domain/calendar";
 import {
   Check,
   Circle,
@@ -9,6 +10,7 @@ import {
   ArrowDown,
   Sun,
   History,
+  Trash2,
   CornerDownRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,7 +33,9 @@ export function TaskRow({
   onStart,
   onEdit,
   onAdd,
+  onAddAfter,
   onHistory,
+  onDelete,
   onPatch,
 }: {
   task: Task;
@@ -43,7 +47,9 @@ export function TaskRow({
   onStart: () => void;
   onEdit: () => void;
   onAdd: () => void;
+  onAddAfter: () => void;
   onHistory: () => void;
+  onDelete: () => void;
   onPatch: (fields: Partial<Task>) => void;
 }) {
   const path = taskPath(tasks, task);
@@ -74,7 +80,9 @@ export function TaskRow({
           {depth > 0 && <CornerDownRight size={12} />}
           {task.title}
         </span>
-        {path.length > 0 && depth === 0 && <small>{path.join(" / ")}</small>}
+        {path.length > 0 && depth === 0 && (
+          <small title={path.join(" / ")}>{path.at(-1)}</small>
+        )}
       </button>
       {active && <span className="task-active-label">In focus</span>}
       <span className="task-duration">
@@ -101,18 +109,29 @@ export function TaskRow({
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="task-actions-menu">
           <DropdownMenuItem onSelect={onEdit}>
             <Pencil />
             Edit details
           </DropdownMenuItem>
+          {!task.archived && task.kind === "task" && (
+            <DropdownMenuItem onSelect={onAddAfter}>
+              <Plus />
+              Add step after
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onSelect={onAdd}>
             <Plus />
             Add a smaller step
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onPatch({ today: !task.today })}>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() =>
+              onPatch({ today: !isToday(task), scheduledDate: null })
+            }
+          >
             <Sun />
-            {task.today ? "Move to backlog" : "Add to today"}
+            {isToday(task) ? "Move to backlog" : "Add to today"}
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() =>
@@ -124,6 +143,7 @@ export function TaskRow({
             <ArrowDown />
             Move to end
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={onHistory}>
             <History />
             View edit history
@@ -134,6 +154,9 @@ export function TaskRow({
           >
             <Archive />
             {task.archived ? "Restore task" : "Archive task"}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onDelete} className="text-destructive">
+            <Trash2 /> Delete {task.kind === "project" ? "project" : "task"}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

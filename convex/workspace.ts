@@ -1,3 +1,7 @@
+import { receiveDeletion } from "./deletion";
+import { receiveBriefingAction } from "./briefings";
+import { receiveContentAction } from "./contentJobs";
+import { receivePlanningAction } from "./planning";
 import {
   paginationOptsValidator,
   paginationResultValidator,
@@ -6,6 +10,7 @@ import { v } from "convex/values";
 import { z } from "zod";
 import { mutation, query } from "./_generated/server";
 import { requireOwner } from "./access";
+import { receiveAIAction } from "./aiJobs";
 import { actionSchema } from "../src/domain/workspace";
 const event = v.object({
   id: v.string(),
@@ -45,7 +50,20 @@ export const appendEvents = mutation({
         e.payload.length > 50000
       )
         throw new Error("Invalid event metadata.");
-      actionSchema.parse(JSON.parse(e.payload));
+      const action = actionSchema.parse(JSON.parse(e.payload));
+      if (
+        [
+          "ai.running",
+          "ai.waiting",
+          "ai.ready",
+          "ai.failed",
+          "calendar.snapshot",
+          "calendar.remove",
+          "planning.result",
+          "content.result",
+        ].includes(action.type)
+      )
+        throw new Error("AI results can only be written by the server.");
       const existing = await ctx.db
         .query("workspace_events")
         .withIndex("by_uuid", (q) => q.eq("uuid", e.id))
@@ -62,6 +80,10 @@ export const appendEvents = mutation({
             "Event ID collision: existing history cannot be changed.",
           );
       } else {
+        await receiveDeletion(ctx, owner_id, action);
+        await receiveContentAction(ctx, owner_id, action);
+        await receiveAIAction(ctx, owner_id, action);
+        await receivePlanningAction(ctx, owner_id, action);
         const { id, ...fields } = e;
         await ctx.db.insert("workspace_events", {
           ...fields,
@@ -69,6 +91,7 @@ export const appendEvents = mutation({
           owner_id,
           sequence: ++sequence,
         });
+        await receiveBriefingAction(ctx, owner_id, action);
       }
     }
     if (sequence !== (head?.sequence ?? 0)) {

@@ -23,3 +23,7 @@ export async function getPrintJobs(): Promise<PrintJob[]> {
   if (!convex) return [];
   return connectedClient().query(api.printing.list, {});
 }
+
+export async function deletePrintJob(id: string) {
+  return connectedClient().mutation(api.printing.remove, { id });
+}

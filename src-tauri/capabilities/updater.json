@@ -1,0 +1,11 @@
+{
+  "identifier": "desktop-updates",
+  "description": "Signed desktop updates from the main settings window",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "updater:default",
+    "process:allow-restart"
+  ]
+}

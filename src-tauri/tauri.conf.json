@@ -1,10 +1,52 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Daily Driver", "version": "0.1.0", "identifier": "app.dailydriver.personal",
-  "build": { "beforeDevCommand": "npm run dev", "devUrl": "http://127.0.0.1:1420", "beforeBuildCommand": "npm run build", "frontendDist": "../dist" },
-  "app": {
-    "windows": [{ "label": "main", "title": "Daily Driver", "width": 1320, "height": 880, "minWidth": 380, "minHeight": 540, "backgroundColor": "#111112" }],
-    "security": { "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost https://*.convex.cloud wss://*.convex.cloud https://*.convex.site; frame-src 'self' blob:" }
+  "productName": "Daily Driver",
+  "version": "0.2.2",
+  "identifier": "app.dailydriver.personal",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
   },
-  "bundle": { "active": true, "targets": ["app", "dmg"], "icon": ["icons/icon.icns", "icons/icon.png"], "macOS": { "minimumSystemVersion": "13.3" } }
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Daily Driver",
+        "width": 1320,
+        "height": 880,
+        "minWidth": 380,
+        "minHeight": 540,
+        "backgroundColor": "#111112"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost https://*.convex.cloud wss://*.convex.cloud https://*.convex.site https://api.open-meteo.com https://geocoding-api.open-meteo.com; frame-src 'self' blob:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "app",
+      "dmg"
+    ],
+    "icon": [
+      "icons/icon.icns",
+      "icons/icon.png"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "13.3"
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUxRTJCM0NENDY3NDdFQUIKUldTcmZuUkd6YlBpNFgzYWNpaHNPTlZJamY4a3hUNXloUVJEbVAveXZhMGhLeGh4WSsvSU5tQloK",
+      "endpoints": [
+        "https://daily-driver-liard.vercel.app/updates/latest.json"
+      ],
+      "requireSignedVersion": true
+    }
+  }
 }

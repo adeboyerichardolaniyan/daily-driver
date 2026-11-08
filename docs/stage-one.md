@@ -79,7 +79,7 @@ The initial transport is the macOS CUPS spooler (`lp`), using the printer's inst
 
 1. Install the printer and its macOS driver on the Mac mini. Verify a normal system print, paper size, and cutter behavior. Find the queue name with `lpstat -p`.
 2. Install Node.js 24+, clone this repository on the Mac mini, run `npm ci`, and install the rendering browser with `npx playwright install chromium`.
-3. Create a private `.env.worker` containing `CONVEX_URL`, `PRINT_WORKER_SECRET`, `PRINTER_NAME`, and a stable `WORKER_ID`. Set the same strong, randomly generated `PRINT_WORKER_SECRET` (at least 32 characters) in the Convex deployment environment. This credential grants only the dedicated worker functions, not task access. The worker requires no user password. Restrict the file to its owner (`chmod 600 .env.worker`). Never commit credentials.
+3. Create a private `.env.worker` containing `CONVEX_URL`, `PRINT_WORKER_SECRET`, `PRINTER_NAME`, `PRINT_MODE=printer`, and a stable `WORKER_ID`. Set the same strong, randomly generated `PRINT_WORKER_SECRET` (at least 32 characters) in the Convex deployment environment. This credential grants only the dedicated worker functions, not task access. The worker requires no user password. Restrict the file to its owner (`chmod 600 .env.worker`). Never commit credentials.
 4. Run `npm run print:worker` on the mini. Its state directory defaults to `.print-worker`; use a stable `PRINT_STATE_DIR` outside the checkout if deployments replace it.
 5. On the app's Briefings screen, preview the receipt, then explicitly send it to the mini. Refresh print activity to see the outcome.
 6. Inspect the physical receipt and scan each QR code with the phone. Authenticate to the same workspace if needed. The linked task has a direct completion action.
@@ -113,4 +113,6 @@ The development backend is deployed. Stage 1 is not fully accepted until real cr
 
 ## Deferred features
 
-AI requests and generation, source ingestion, Google/Outlook calendar feeds, nightly planning, approval-driven/scheduled printing, a visual template editor, Cuelume sounds, streaks, backup import UI, and signed/notarized distribution are not active yet. The UI labels the assistant as upcoming; it does not simulate AI responses.
+Source ingestion, approval-driven/scheduled printing, a visual template editor, Cuelume sounds, streaks, backup import UI, and signed/notarized distribution are not active yet. AI task breakdown is now implemented; see [AI breakdown](ai-breakdown.md) for configuration and validation limits.
+
+Calendar feeds, editable daily availability, evening drafts, and approval-driven replanning are implemented. See [Calendar-aware planning](calendar-planning.md).

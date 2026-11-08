@@ -1,3 +1,4 @@
+import { dateKey } from "@/domain/calendar";
 import { useState, type FormEvent } from "react";
 import {
   Dialog,
@@ -29,22 +30,32 @@ export function TaskEditor({
   tasks,
   parentId,
   kind = "task",
+  scheduledDate,
+  today,
+  position,
   onSave,
   onClose,
+  onDelete,
 }: {
   task?: Task;
   tasks: Task[];
   parentId?: string;
   kind?: "task" | "project";
+  scheduledDate?: string | null;
+  today?: boolean;
+  position?: number;
   onSave: (fields: TaskFields) => Promise<void>;
   onClose: () => void;
+  onDelete?: () => void;
 }) {
   const [fields, setFields] = useState<TaskFields>(
     task ??
       taskDefaults("", {
         parentId: parentId ?? null,
         kind,
-        today: kind !== "project",
+        today: today ?? (!scheduledDate && kind !== "project"),
+        scheduledDate,
+        ...(position !== undefined ? { position } : {}),
       }),
   );
   const [busy, setBusy] = useState(false);
@@ -83,7 +94,9 @@ export function TaskEditor({
             {fields.kind === "project" ? "project" : "task"}
           </DialogTitle>
           <DialogDescription>
-            Make it concrete. A small starting point is enough.
+            {fields.parentId
+              ? `Adding ${task ? "details" : "a step"} in ${tasks.find((t) => t.id === fields.parentId)?.title ?? "this list"}.`
+              : "Set the next action and what finishing it looks like."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="form-stack">
@@ -106,7 +119,7 @@ export function TaskEditor({
                 patch("parentId", value === "none" ? null : value)
               }
             >
-              <SelectTrigger>
+              <SelectTrigger aria-label="Belongs to">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -154,8 +167,20 @@ export function TaskEditor({
             <label>
               Plan
               <Select
-                value={fields.today ? "today" : "backlog"}
-                onValueChange={(value) => patch("today", value === "today")}
+                value={
+                  fields.scheduledDate != null
+                    ? "scheduled"
+                    : fields.today
+                      ? "today"
+                      : "backlog"
+                }
+                onValueChange={(value) =>
+                  setFields((current) => ({
+                    ...current,
+                    today: value === "today",
+                    scheduledDate: value === "scheduled" ? dateKey() : null,
+                  }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -163,16 +188,38 @@ export function TaskEditor({
                 <SelectContent>
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="backlog">Backlog</SelectItem>
+                  <SelectItem value="scheduled">On a date</SelectItem>
                 </SelectContent>
               </Select>
             </label>
           </div>
+          {fields.scheduledDate != null && (
+            <label>
+              Scheduled date
+              <Input
+                type="date"
+                required
+                value={fields.scheduledDate}
+                onChange={(event) => patch("scheduledDate", event.target.value)}
+              />
+            </label>
+          )}
           {error && (
             <p role="alert" className="error-text">
               {error}
             </p>
           )}
           <DialogFooter>
+            {task && onDelete && (
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={busy}
+                onClick={onDelete}
+              >
+                Delete {task.kind}
+              </Button>
+            )}
             <Button
               type="button"
               variant="ghost"

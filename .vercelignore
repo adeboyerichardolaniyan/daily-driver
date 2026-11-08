@@ -1,0 +1,12 @@
+.git
+.env*
+.print-worker
+src-tauri
+.agents
+.claude
+node_modules
+dist
+test-results
+playwright-report
+
+.desktop-releases

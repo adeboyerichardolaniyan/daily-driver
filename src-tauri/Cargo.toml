@@ -1,6 +1,6 @@
 [package]
 name = "daily-driver"
-version = "0.1.0"
+version = "0.2.2"
 description = "Local-first tasks and focus"
 authors = ["Daily Driver"]
 edition = "2021"
@@ -13,4 +13,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+serde_json = "1.0.154"
 tauri = { version = "2", features = [] }
+tauri-plugin-process = "2.4.0"
+tauri-plugin-updater = "2.14.1"

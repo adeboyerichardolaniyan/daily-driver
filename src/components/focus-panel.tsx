@@ -55,7 +55,7 @@ export function FocusPanel({
       <div className="focus-top">
         <span className="eyebrow">
           <span className={`status-dot ${running ? "live" : ""}`} />
-          {active ? "IN FOCUS" : "YOUR NEXT SMALL STEP"}
+          {active ? "In focus" : "Next step"}
         </span>
         <div className="toolbar">
           <Button
@@ -83,14 +83,13 @@ export function FocusPanel({
       {task ? (
         <>
           <div className="focus-copy">
-            <p className="breadcrumb-text">
-              {taskPath(tasks, task).join(" / ") || "A little progress today"}
-            </p>
+            {taskPath(tasks, task).length > 0 && (
+              <p className="breadcrumb-text">
+                {taskPath(tasks, task).join(" / ")}
+              </p>
+            )}
             <h2>{task.title}</h2>
-            <p className="focus-notes">
-              {task.notes ||
-                "Give this one small thing your attention. Everything else can wait."}
-            </p>
+            {task.notes && <p className="focus-notes">{task.notes}</p>}
             {task.doneWhen && (
               <div className="done-when">
                 <Check size={14} />
@@ -132,7 +131,7 @@ export function FocusPanel({
           <div className="focus-secondary">
             <Button variant="ghost" size="sm" onClick={() => onSmaller(task)}>
               <CornerDownRight />
-              Break into a smaller step
+              Make it easier
             </Button>
             <Button
               variant="ghost"
@@ -149,8 +148,8 @@ export function FocusPanel({
           <div className="empty-orbit">
             <Check />
           </div>
-          <h2>A little room to begin.</h2>
-          <p>Add a task, or bring something from your backlog into today.</p>
+          <h2>No steps scheduled</h2>
+          <p>Add a task or move one from your backlog.</p>
         </div>
       )}
     </section>

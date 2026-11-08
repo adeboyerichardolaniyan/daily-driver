@@ -1,0 +1,147 @@
+/* Shared application type roles. Receipt typography remains in workspace.css. */
+:root {
+  --type-meta: 0.75rem;
+  --type-support: 0.8125rem;
+  --type-body: 0.875rem;
+  --type-input-mobile: 1rem;
+  --type-dialog: 1.25rem;
+  --type-focus: 1.375rem;
+  --type-page: 1.5rem;
+  font-optical-sizing: auto;
+  font-synthesis: none;
+}
+body {
+  font-size: var(--type-body);
+  line-height: 1.5;
+}
+h1 {
+  font-size: var(--type-page);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin-block: 8px 4px;
+}
+.brand {
+  font-size: var(--type-body);
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+}
+.focus-copy h2 {
+  font-size: var(--type-focus);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+.focus-panel.immersive .focus-copy h2 {
+  font-size: clamp(1.625rem, 4vw, 2.5rem);
+}
+.focus-notes,
+.page-description,
+.settings-section p,
+.assistant-body p,
+.briefing-copy > p,
+.ai-step-copy p {
+  font-size: var(--type-body);
+  font-weight: 400;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+.focus-notes {
+  margin-top: 10px;
+}
+.eyebrow,
+.focus-top .eyebrow,
+.weekday,
+.calendar-column-heading .subtle-badge {
+  font-size: var(--type-meta);
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: normal;
+}
+.task-label > span,
+.calendar-task-title,
+.ai-step-copy strong,
+.search-result-copy > span {
+  font-size: var(--type-body);
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: normal;
+}
+.task-label small,
+.search-result-copy small,
+.breadcrumb-text,
+.timer small {
+  font-size: var(--type-support);
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: normal;
+}
+.task-label small {
+  margin-top: 2px;
+}
+.task-section-heading h2,
+.calendar-task-group h3,
+.calendar-column-heading h2,
+.calendar-month-heading h2,
+.assistant-heading [data-slot="sheet-title"] {
+  font-size: var(--type-body);
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: normal;
+}
+.briefing-copy h2,
+.editor-dialog [data-slot="dialog-title"] {
+  font-size: var(--type-dialog);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+.ai-plan h3 {
+  font-size: var(--type-body);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.nav-count,
+.task-section-heading > div > span,
+.calendar-day {
+  font-family: var(--font-sans);
+  font-size: var(--type-meta);
+  font-weight: 500;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+.timer > span {
+  font-family: "Geist Mono Variable", monospace;
+  font-size: var(--type-dialog);
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: normal;
+  font-variant-numeric: tabular-nums;
+}
+.today-view-switch button,
+.form-stack label {
+  font-size: var(--type-support);
+  font-weight: 500;
+  line-height: 1.4;
+}
+.search-result-status,
+.search-command-footer {
+  font-size: var(--type-meta);
+  font-weight: 400;
+  line-height: 1.5;
+}
+.form-stack input,
+.form-stack textarea,
+.form-stack [role="combobox"] {
+  font-size: var(--type-body);
+  font-weight: 400;
+}
+@media (max-width: 700px) {
+  .form-stack input,
+  .form-stack textarea,
+  .form-stack [role="combobox"],
+  .search-command-dialog [data-slot="command-input"] {
+    font-size: var(--type-input-mobile);
+  }
+}

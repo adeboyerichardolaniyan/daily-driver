@@ -10,3 +10,12 @@ test-results/
 playwright-report/
 .print-worker/
 src-tauri/gen/
+
+.vercel/
+.vercel
+.env*
+
+public/updates/*.tar.gz
+public/updates/*.zip
+
+.desktop-releases/

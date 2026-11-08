@@ -1,6 +1,8 @@
 import type { AbstractPowerSyncDatabase } from "@powersync/common";
 import {
   actionSchema,
+  descendants,
+  type Task,
   taskDefaults,
   type Action,
   type WorkspaceEvent,
@@ -39,6 +41,12 @@ export class WorkspaceRepository {
   }
   edit(taskId: string, fields: Partial<TaskFields>) {
     return this.append([{ type: "task.edit", taskId, fields }]);
+  }
+  async deleteTask(task: Task, tasks: Task[]) {
+    const ids = [...descendants(tasks, task.id)];
+    await this.append([
+      { type: "object.delete", kind: "task", id: task.id, relatedIds: ids },
+    ]);
   }
   async example() {
     // Explicit, user-requested sample. These are authored examples, not AI output.
