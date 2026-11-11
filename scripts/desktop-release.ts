@@ -34,6 +34,12 @@ await run("npm", ["run", "tauri", "--", "build", "--bundles", "app"], {
     process.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || "",
 });
 const bundle = resolve("src-tauri/target/release/bundle/macos");
+await run("codesign", [
+  "--verify",
+  "--deep",
+  "--strict",
+  resolve(bundle, "Daily Driver.app"),
+]);
 const archive = resolve(bundle, "Daily Driver.app.tar.gz");
 const bytes = await readFile(archive);
 const signature = (await readFile(archive + ".sig", "utf8")).trim();

@@ -13,7 +13,7 @@ Manifest: https://daily-driver-liard.vercel.app/updates/latest.json
 
 Packages use versioned URLs under /updates/. The manifest is served with no-store. It is excluded from the SPA rewrite. The updater uses native networking, not browser eval or arbitrary downloaded JavaScript.
 
-This signature is distinct from Apple Developer signing/notarization. First installation can still require macOS's Open Anyway approval. Apple signing/notarization is not configured.
+The updater signature is distinct from the app bundle's ad-hoc macOS code signature. The bundle uses Tauri's `signingIdentity: "-"` setting, and the release script verifies it with `codesign --verify --deep --strict` before staging the update. First installation can still require macOS's Open Anyway approval. Apple Developer signing/notarization is not configured. See [Tauri's ad-hoc signing guidance](https://v2.tauri.app/distribute/sign/macos/#ad-hoc-signing).
 
 The signing key was generated locally at ~/.config/daily-driver/updater.key, outside this repository, with private permissions. Only its public key is embedded in the app. Back up the private key securely: losing it prevents publishing updates accepted by installed copies. Do not commit or upload it, or copy it to client Macs.
 
