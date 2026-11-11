@@ -1,6 +1,6 @@
 [package]
 name = "daily-driver"
-version = "0.2.2"
+version = "0.2.3"
 description = "Local-first tasks and focus"
 authors = ["Daily Driver"]
 edition = "2021"

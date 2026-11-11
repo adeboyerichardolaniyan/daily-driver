@@ -1,12 +1,12 @@
 {
-  "version": "0.2.2",
-  "notes": "Delete tasks and projects from their action menu or editor.\nManage saved objects in Settings & connections → Manage data.\nDelete projects with their nested tasks and steps after confirming the scope.\nDeletion syncs across devices; late edits cannot restore deleted tasks or collections.\nCancel queued print jobs or remove completed delivery history from Briefings.\nPreserve approved task times when removing a calendar or saved plan.\n",
-  "pub_date": "2026-11-08T01:37:40.586Z",
+  "version": "0.2.3",
+  "notes": "Keep Content collections and Open saved briefing together below the Daily briefing heading.\nGive both buttons consistent styling and spacing above the receipt form.\nShow the number of content collections in a separate count badge.\nKeep briefing actions accessible on narrow Mac windows and phone screens.\n",
+  "pub_date": "2026-11-11T15:59:27.589Z",
   "platforms": {
     "darwin-aarch64": {
-      "url": "https://daily-driver-liard.vercel.app/updates/daily-driver-0.2.2-aarch64.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTcmZuUkd6YlBpNFJPd2Q5QklvUkNtZCtWUWUrNHE1dFJDdzU3elpJNE84bDJZenU1ejU3Mi9KQTlkQmhBaEE2ZStNYWlNS0JRNjJFay8vc1RxQS9ITWl5b2IzMGhoOVFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0MTAxODYwCWZpbGU6RGFpbHkgRHJpdmVyLmFwcC50YXIuZ3oJdmVyc2lvbjowLjIuMgpoSDVLTTJWSnRvYTB2YUhWbnNPazFmTGpVUWRlSEowamw4bmxUYmN4RTcrK0E4OHY3NUFVV25BT01iNkRRVlFzMkxzdVZsQy92UEhDNHNPSFpCZGxCZz09Cg==",
-      "sha256": "9dc1eab7b6cc1f1b818c1eaa54fbb2e265958ef396c1c560677dbaf355f3ec8a"
+      "url": "https://daily-driver-liard.vercel.app/updates/daily-driver-0.2.3-aarch64.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTcmZuUkd6YlBpNGJyZ0tPcnhVcVhpclJuZnk2VDMxY3hVUnFBeDZYZDA1UjA1SUNZcUxXbUZYaW9sWlg3ekVER1lDMHhPRXFWcjI5UVhrZ3hHVUJKKzR3YkIrNlVUMXdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NDEyNzY3CWZpbGU6RGFpbHkgRHJpdmVyLmFwcC50YXIuZ3oJdmVyc2lvbjowLjIuMwowSXFJK25lY0VQeDZjUHJzalpRak5wQXNqV3Y4TThyMUtqd1FpeEUwTTd5TC9iakYzNUcwTTBrT0FhWEpWcmZqRFlPeHh2Tlhzdm80TWZSUVpKOHdBdz09Cg==",
+      "sha256": "bd5c6db1fd57557a9d94d1c2700179b2dcf5903de6d9add9c960aac55aed7993"
     }
   }
 }

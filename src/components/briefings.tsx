@@ -13,6 +13,7 @@ import {
   ArrowDown,
   Trash2,
   Plus,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -134,17 +135,21 @@ export function Briefings({
   return (
     <div className="briefing-editor-layout">
       <div className="briefing-editor">
-        <div className="briefing-collection-tools">
-          {issued && (
-            <Button variant="ghost" onClick={() => setLinkedDay(day)}>
-              Open saved briefing
-            </Button>
-          )}
-        </div>
-        <div className="section-heading">
-          <h2>Daily briefing</h2>
-          <span className="briefing-format">80 mm receipt</span>
-        </div>
+        <header className="briefing-editor-header">
+          <div className="section-heading">
+            <h2>Daily briefing</h2>
+            <span className="briefing-format">80 mm receipt</span>
+          </div>
+          <div className="briefing-collection-tools">
+            <ContentCollections workspace={workspace} repository={repository} />
+            {issued && (
+              <Button variant="outline" onClick={() => setLinkedDay(day)}>
+                <FileText aria-hidden="true" />
+                Open saved briefing
+              </Button>
+            )}
+          </div>
+        </header>
         <section
           className="briefing-settings-group"
           aria-labelledby="template-heading"
@@ -589,10 +594,6 @@ export function Briefings({
         <small>
           Today’s tasks and calendar · {workspace.planningSettings.timeZone}
         </small>
-      </div>
-      <div className="briefing-page-footer">
-        <ContentCollections workspace={workspace} repository={repository} />
-        <span>Manage the content your receipt rotates through.</span>
       </div>
     </div>
   );

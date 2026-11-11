@@ -1,6 +1,6 @@
 import { ChoiceSelect } from "./ui/choice-select";
 import { useState } from "react";
-import { Plus, Sparkles, Trash2, Check } from "lucide-react";
+import { Plus, Sparkles, Trash2, Check, Library } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -35,9 +35,19 @@ export function ContentCollections({
   );
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>
-        Content collections{" "}
-        <span>{workspace.contentCollections.length || ""}</span>
+      <Button
+        variant="outline"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen(true)}
+      >
+        <Library aria-hidden="true" />
+        Content collections
+        {workspace.contentCollections.length > 0 && (
+          <span className="collection-count">
+            {workspace.contentCollections.length}
+          </span>
+        )}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="collections-dialog">
