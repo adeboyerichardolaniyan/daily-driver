@@ -28,6 +28,8 @@ import type * as planningAI from "../planningAI.js";
 import type * as printing from "../printing.js";
 import type * as publish from "../publish.js";
 import type * as workspace from "../workspace.js";
+import type * as workspaceHistory from "../workspaceHistory.js";
+import type * as workspaceReader from "../workspaceReader.js";
 
 import type {
   ApiFromModules,
@@ -56,6 +58,8 @@ declare const fullApi: ApiFromModules<{
   printing: typeof printing;
   publish: typeof publish;
   workspace: typeof workspace;
+  workspaceHistory: typeof workspaceHistory;
+  workspaceReader: typeof workspaceReader;
 }>;
 
 /**

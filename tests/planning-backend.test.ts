@@ -114,8 +114,8 @@ it("queues evening planning once in the saved timezone and leaves task schedulin
       payload: JSON.stringify(a),
     })),
   });
-  await t.mutation(internal.planning.tick, {});
-  await t.mutation(internal.planning.tick, {});
+  await t.action(internal.planning.tick, {});
+  await t.action(internal.planning.tick, {});
   const jobs = await t.run((ctx) => ctx.db.query("planning_jobs").collect());
   expect(jobs).toHaveLength(1);
   expect(jobs[0].date).toBe("2026-11-09");

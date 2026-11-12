@@ -152,6 +152,14 @@ export function parseAction(event: WorkspaceEvent): Action | null {
   }
 }
 
+export function compareWorkspaceEvents(a: WorkspaceEvent, b: WorkspaceEvent) {
+  return (
+    a.clock - b.clock ||
+    a.actor_id.localeCompare(b.actor_id) ||
+    a.id.localeCompare(b.id)
+  );
+}
+
 // A stable Lamport ordering converges after offline replay. Every version remains
 // in the event log; field patches do not replace unrelated concurrent edits.
 export function projectWorkspace(input: WorkspaceEvent[]): Workspace {
@@ -167,12 +175,7 @@ export function projectWorkspace(input: WorkspaceEvent[]): Workspace {
   const dailyPlans = new Map<string, DailyPlan>();
   const events = [
     ...new Map(input.map((event) => [event.id, event])).values(),
-  ].sort(
-    (a, b) =>
-      a.clock - b.clock ||
-      a.actor_id.localeCompare(b.actor_id) ||
-      a.id.localeCompare(b.id),
-  );
+  ].sort(compareWorkspaceEvents);
   const tasks = new Map<string, Task>();
   let focus: Focus | null = null;
   const proposals = new Map<string, Proposal>();

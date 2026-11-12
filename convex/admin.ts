@@ -5,7 +5,10 @@ import { internal } from "./_generated/api";
 export const grantOwner = internalMutation({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
-    const existing = await ctx.db.query("app_members").first();
+    const existing = await ctx.db
+      .query("app_members")
+      .withIndex("by_user")
+      .first();
     if (existing && existing.user_id !== userId)
       throw new Error("This personal workspace already has an owner.");
     if (!existing) await ctx.db.insert("app_members", { user_id: userId });

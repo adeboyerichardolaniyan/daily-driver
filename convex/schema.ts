@@ -84,6 +84,7 @@ export default defineSchema({
     .index("by_owner_date", ["owner_id", "date"]),
   briefing_schedules: defineTable({
     owner_id: v.id("users"),
+    timeZone: v.optional(v.string()),
     settings: v.string(),
     version: v.number(),
     nextRun: v.number(),
@@ -121,7 +122,17 @@ export default defineSchema({
     .index("by_owner_and_deleted", ["owner_id", "deleted"])
     .index("by_status", ["status"])
     .index("by_worker_status", ["worker_id", "status"])
-    .index("by_status_output", ["status", "output"]),
+    .index("by_status_output", ["status", "output"])
+    .index("by_owner_id_and_worker_id_and_status", [
+      "owner_id",
+      "worker_id",
+      "status",
+    ])
+    .index("by_owner_id_and_status_and_output", [
+      "owner_id",
+      "status",
+      "output",
+    ]),
   // Retained for compatibility with the previous deployment; no longer used.
   powersync_checkpoints: defineTable({ last_updated: v.float64() }),
 });

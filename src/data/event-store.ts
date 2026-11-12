@@ -44,7 +44,7 @@ export class EventStore {
   }
   async pending(): Promise<WorkspaceEvent[]> {
     return this.db.getAll(
-      "SELECT id, actor_id, clock, created_at, payload FROM event_log WHERE uploaded = 0 ORDER BY clock, actor_id, id LIMIT 20",
+      "SELECT id, actor_id, clock, created_at, payload FROM event_log WHERE uploaded = 0 ORDER BY clock, actor_id LIMIT 20",
     );
   }
   async acknowledge(events: WorkspaceEvent[]) {

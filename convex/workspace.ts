@@ -1,5 +1,5 @@
 import { receiveDeletion } from "./deletion";
-import { receiveBriefingAction } from "./briefings";
+import { receiveBriefingAction, validateBriefingAction } from "./briefings";
 import { receiveContentAction } from "./contentJobs";
 import { receivePlanningAction } from "./planning";
 import {
@@ -33,12 +33,20 @@ export const appendEvents = mutation({
   returns: v.null(),
   handler: async (ctx, { events }) => {
     const owner_id = await requireOwner(ctx);
-    if (events.length > 1000) throw new Error("Upload batch is too large.");
+    if (
+      events.length > 100 ||
+      events.reduce(
+        (bytes, e) => bytes + new TextEncoder().encode(e.payload).length,
+        0,
+      ) > 2_000_000
+    )
+      throw new Error("Upload batch is too large.");
     const head = await ctx.db
       .query("workspace_heads")
       .withIndex("by_owner", (q) => q.eq("owner_id", owner_id))
       .unique();
     let sequence = head?.sequence ?? 0;
+    let settingsChanged = false;
     for (const e of events) {
       z.string().uuid().parse(e.id);
       if (
@@ -47,10 +55,11 @@ export const appendEvents = mutation({
         !Number.isSafeInteger(e.clock) ||
         e.clock < 1 ||
         !Number.isFinite(Date.parse(e.created_at)) ||
-        e.payload.length > 50000
+        new TextEncoder().encode(e.payload).length > 50000
       )
         throw new Error("Invalid event metadata.");
       const action = actionSchema.parse(JSON.parse(e.payload));
+      validateBriefingAction(action);
       if (
         [
           "ai.running",
@@ -91,13 +100,16 @@ export const appendEvents = mutation({
           owner_id,
           sequence: ++sequence,
         });
-        await receiveBriefingAction(ctx, owner_id, action);
+        settingsChanged ||=
+          action.type === "briefing.schedule" ||
+          action.type === "planning.settings";
       }
     }
     if (sequence !== (head?.sequence ?? 0)) {
       if (head) await ctx.db.patch(head._id, { sequence });
       else await ctx.db.insert("workspace_heads", { owner_id, sequence });
     }
+    if (settingsChanged) await receiveBriefingAction(ctx, owner_id);
     return null;
   },
 });
@@ -153,8 +165,8 @@ export const changes = query({
       .withIndex("by_owner_sequence", (q) =>
         q.eq("owner_id", owner).gt("sequence", after),
       )
-      .take(20);
-    return rows.map((e) => ({
+      .paginate({ cursor: null, numItems: 20, maximumBytesRead: 500_000 });
+    return rows.page.map((e) => ({
       id: e.uuid,
       actor_id: e.actor_id,
       clock: e.clock,

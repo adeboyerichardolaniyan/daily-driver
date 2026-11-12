@@ -86,7 +86,7 @@ export default function App() {
     isLoading,
     error: queryError,
   } = useQuery<WorkspaceEvent>(
-    "SELECT * FROM event_log ORDER BY clock, actor_id, id",
+    "SELECT * FROM event_log ORDER BY clock, actor_id",
   );
   const workspace = useMemo(() => projectWorkspace(events), [events]);
   const { account, connected, error: connectionError } = useConnection();

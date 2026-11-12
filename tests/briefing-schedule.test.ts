@@ -38,12 +38,13 @@ async function setup() {
         },
       ],
     });
+    await t.action(internal.briefings.syncSettings, { owner: user });
   }
   await save();
   const pref = await t.run((ctx) =>
     ctx.db.query("briefing_schedules").unique(),
   );
-  return { t, owner, settings, save, pref: pref! };
+  return { t, owner, user, settings, save, pref: pref! };
 }
 afterEach(() => {
   vi.useRealTimers();
@@ -54,8 +55,8 @@ it("prepares one immutable daily briefing and PDF job even when invoked concurre
   const { t, pref } = await setup();
   const args = { id: pref._id, version: pref.version, day: "2026-11-07" };
   await Promise.all([
-    t.mutation(internal.briefings.complete, args),
-    t.mutation(internal.briefings.complete, args),
+    t.action(internal.briefings.complete, args),
+    t.action(internal.briefings.complete, args),
   ]);
   const jobs = await t.run((ctx) => ctx.db.query("print_jobs").collect());
   expect(jobs).toHaveLength(1);
@@ -74,7 +75,7 @@ it("prepares one immutable daily briefing and PDF job even when invoked concurre
 it("respects disabled schedules, version changes and time before delivery", async () => {
   const { t, pref, save, settings } = await setup();
   await save({ ...settings, time: "23:00" });
-  await t.mutation(internal.briefings.complete, {
+  await t.action(internal.briefings.complete, {
     id: pref._id,
     version: 2,
     day: "2026-11-07",
@@ -84,12 +85,12 @@ it("respects disabled schedules, version changes and time before delivery", asyn
   ).toHaveLength(0);
   vi.setSystemTime(now);
   await save({ ...settings, enabled: false });
-  await t.mutation(internal.briefings.complete, {
+  await t.action(internal.briefings.complete, {
     id: pref._id,
     version: 2,
     day: "2026-11-07",
   });
-  await t.mutation(internal.briefings.complete, {
+  await t.action(internal.briefings.complete, {
     id: pref._id,
     version: 3,
     day: "2026-11-07",
@@ -110,7 +111,7 @@ it("cron prepares a briefing while the client is closed", async () => {
 it("PDF workers cannot claim physical jobs and report PDF output separately", async () => {
   const { t, pref, owner } = await setup();
   vi.stubEnv("PRINT_WORKER_SECRET", "x".repeat(32));
-  await t.mutation(internal.briefings.complete, {
+  await t.action(internal.briefings.complete, {
     id: pref._id,
     version: 1,
     day: "2026-11-07",
@@ -178,7 +179,7 @@ it("reuses a saved briefing instead of regenerating its content", async () => {
       },
     ],
   });
-  await t.mutation(internal.briefings.complete, {
+  await t.action(internal.briefings.complete, {
     id: pref._id,
     version: 1,
     day: "2026-11-07",
@@ -227,7 +228,7 @@ it("refreshes weather in the background and saves a readable warning on provider
   ).toHaveLength(1);
 });
 it("keeps the converged schedule when another device uploads older edits later", async () => {
-  const { t, owner, settings } = await setup();
+  const { t, owner, user, settings } = await setup();
   for (const [clock, enabled] of [
     [20, true],
     [10, false],
@@ -247,12 +248,13 @@ it("keeps the converged schedule when another device uploads older edits later",
       ],
     });
   }
+  await t.action(internal.briefings.syncSettings, { owner: user });
   const row = await t.run((ctx) => ctx.db.query("briefing_schedules").unique());
   expect(JSON.parse(row!.settings).enabled).toBe(true);
 });
 it("administrative recovery retries a failed PDF once and refuses physical output", async () => {
   const { t, pref } = await setup();
-  await t.mutation(internal.briefings.complete, {
+  await t.action(internal.briefings.complete, {
     id: pref._id,
     version: 1,
     day: "2026-11-07",
@@ -276,7 +278,7 @@ it("administrative recovery retries a failed PDF once and refuses physical outpu
 it("uses the deployed app URL for schedules originally saved in PDF placeholder mode", async () => {
   const { t, pref } = await setup();
   vi.stubEnv("SITE_URL", "https://daily-driver-liard.vercel.app");
-  await t.mutation(internal.briefings.complete, {
+  await t.action(internal.briefings.complete, {
     id: pref._id,
     version: 1,
     day: "2026-11-07",

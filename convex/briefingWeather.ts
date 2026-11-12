@@ -11,8 +11,9 @@ export const prepare = internalAction({
       const context: {
         day: string;
         zone: string;
-        weather: WeatherLocation | null;
-      } | null = await ctx.runQuery(internal.briefings.context, {
+        weather: string | null;
+        prepared: { sequence: number; state: string };
+      } | null = await ctx.runAction(internal.briefings.context, {
         ...args,
         now: Date.now(),
       });
@@ -21,16 +22,20 @@ export const prepare = internalAction({
       if (context.weather) {
         try {
           weather = JSON.stringify(
-            await fetchWeather(context.weather, context.zone),
+            await fetchWeather(
+              JSON.parse(context.weather) as WeatherLocation,
+              context.zone,
+            ),
           );
         } catch {
           warning =
             "Weather refresh failed. The briefing uses today's cached weather if available.";
         }
       }
-      await ctx.runMutation(internal.briefings.complete, {
+      await ctx.runAction(internal.briefings.complete, {
         ...args,
         day: context.day,
+        prepared: context.prepared,
         weather,
         warning,
       });

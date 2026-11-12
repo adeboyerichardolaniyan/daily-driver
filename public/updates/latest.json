@@ -1,12 +1,12 @@
 {
-  "version": "0.2.4",
-  "notes": "Open saved briefings in a modal without leaving the editor or losing unsaved template edits.\nKeep Content collections and saved briefing actions together above the receipt form.\nFix web updates getting stuck behind an older offline cache.\nShow a refresh notice when a web update is ready, so edits can be saved first.\nPreserve saved workspace data and offline access during updates.\n",
-  "pub_date": "2026-11-12T03:50:14.314Z",
+  "version": "0.2.5",
+  "notes": "Fix scheduled briefings and planning failing when workspace history exceeds the database read limit.\nRead history in indexed, bounded pages while preserving saved tasks, briefings, and offline edits.\nImprove local database indexes for sync, workspace loading, and export.\nAdd targeted indexes and bounded recovery for printer and PDF jobs.\n",
+  "pub_date": "2026-11-12T23:19:36.657Z",
   "platforms": {
     "darwin-aarch64": {
-      "url": "https://daily-driver-liard.vercel.app/updates/daily-driver-0.2.4-aarch64.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTcmZuUkd6YlBpNGNNY3BLZHdrOU1PcmxaNlZFdWdCOTBXb3VMNTJPb2hmTUlPeEV6MmEvQlFKUDI2S0VqcEI3T2ZnSmM1ek4zNjZGNHZPOG1jVHUvL2E2K29GNjlONVFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NDU1NDE0CWZpbGU6RGFpbHkgRHJpdmVyLmFwcC50YXIuZ3oJdmVyc2lvbjowLjIuNAphc0kvbkw0ay9ydjdYMkNPdkRMalNJZjhtamFEbWJjK0VIeUtBQ3Mrd1k0dExCTUJ1QkVma05YK3NaZExtWis0bGNERjFTU1BRU0VwZFQ5VTFaR3dBUT09Cg==",
-      "sha256": "43d031c327d90bc26cee9b6aba97c260569542760469ee557bf2fe9078583721"
+      "url": "https://daily-driver-liard.vercel.app/updates/daily-driver-0.2.5-aarch64.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTcmZuUkd6YlBpNGEyOFhsckNPdWlXV3FYamkrRXV3Nnl2U1J5K0dsTDNsTDU2bmFQTE13eXozS2ZUWTFNY25xdmV6ZjJGZGRqSUsrNnVKVklJRHRkRFdVR0xPdjNHRGdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NTI1NTc2CWZpbGU6RGFpbHkgRHJpdmVyLmFwcC50YXIuZ3oJdmVyc2lvbjowLjIuNQpyN2VQbzdHSHlsczZneVBWajcxOXNQUG16dUJLYTJxcG85aHVrd0UxRVlmb1l6OG5admpDdUtabncybXE1SUplM0Z3UG42SG5nOFIwN2t4UjVPNkpBQT09Cg==",
+      "sha256": "55518bdbcdfc4b888086140e449a3513e50f1eb14f4665df7a4585e4818c3883"
     }
   }
 }

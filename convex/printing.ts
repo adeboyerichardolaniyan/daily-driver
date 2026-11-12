@@ -54,14 +54,12 @@ export const list = query({
       )
       .order("desc")
       .take(10);
-    return jobs
-      .filter((j) => !j.deleted)
-      .map((j) => ({
-        id: j.uuid,
-        status: j.status,
-        created_at: j.created_at,
-        error: j.error,
-      }));
+    return jobs.map((j) => ({
+      id: j.uuid,
+      status: j.status,
+      created_at: j.created_at,
+      error: j.error,
+    }));
   },
 });
 export const interrupted = query({
@@ -70,13 +68,14 @@ export const interrupted = query({
     const owner = await requireWorker(ctx, secret);
     const jobs = await ctx.db
       .query("print_jobs")
-      .withIndex("by_worker_status", (q) =>
-        q.eq("worker_id", worker).eq("status", "processing"),
+      .withIndex("by_owner_id_and_worker_id_and_status", (q) =>
+        q
+          .eq("owner_id", owner)
+          .eq("worker_id", worker)
+          .eq("status", "processing"),
       )
-      .collect();
-    return jobs
-      .filter((j) => j.owner_id === owner)
-      .map((j) => ({ id: j.uuid }));
+      .take(10);
+    return jobs.map((j) => ({ id: j.uuid }));
   },
 });
 export const claim = mutation({
@@ -90,15 +89,18 @@ export const claim = mutation({
     const job =
       (await ctx.db
         .query("print_jobs")
-        .withIndex("by_status_output", (q) =>
-          q.eq("status", "queued").eq("output", output),
+        .withIndex("by_owner_id_and_status_and_output", (q) =>
+          q.eq("owner_id", owner).eq("status", "queued").eq("output", output),
         )
         .first()) ??
       (output === "printer"
         ? await ctx.db
             .query("print_jobs")
-            .withIndex("by_status_output", (q) =>
-              q.eq("status", "queued").eq("output", undefined),
+            .withIndex("by_owner_id_and_status_and_output", (q) =>
+              q
+                .eq("owner_id", owner)
+                .eq("status", "queued")
+                .eq("output", undefined),
             )
             .first()
         : null);

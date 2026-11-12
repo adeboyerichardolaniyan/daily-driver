@@ -1,6 +1,7 @@
 import type { AbstractPowerSyncDatabase } from "@powersync/common";
 import {
   actionSchema,
+  compareWorkspaceEvents,
   descendants,
   type Task,
   taskDefaults,
@@ -113,8 +114,9 @@ export class WorkspaceRepository {
     return project;
   }
   async exportEvents(): Promise<WorkspaceEvent[]> {
-    return this.db.getAll(
-      "SELECT * FROM event_log ORDER BY clock, actor_id, id",
+    const events = await this.db.getAll<WorkspaceEvent>(
+      "SELECT * FROM event_log ORDER BY clock, actor_id",
     );
+    return events.sort(compareWorkspaceEvents);
   }
 }

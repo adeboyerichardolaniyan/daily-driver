@@ -1,6 +1,7 @@
 import { workerConnection, connectionMessage } from "./worker-connection";
 import { api } from "../convex/_generated/api";
 import { DatabaseSync } from "node:sqlite";
+import { initializePrintJournal } from "./print-journal";
 import { mkdir, writeFile, chmod } from "node:fs/promises";
 import { resolve } from "node:path";
 import { execFile } from "node:child_process";
@@ -39,9 +40,7 @@ try {
   throw new Error("Another worker already uses this state directory.");
 }
 const journal = new DatabaseSync(resolve(directory, "journal.sqlite"));
-journal.exec(
-  "CREATE TABLE IF NOT EXISTS attempts (id TEXT PRIMARY KEY, status TEXT NOT NULL, detail TEXT, reported INTEGER NOT NULL DEFAULT 0)",
-);
+initializePrintJournal(journal);
 let stopping = false;
 process.on("SIGINT", () => {
   stopping = true;
@@ -73,27 +72,48 @@ async function finish(id: string, status: string, detail: string | null) {
   journal.prepare("UPDATE attempts SET reported = 1 WHERE id = ?").run(id);
 }
 async function reconcile() {
-  // A worker killed after claim but before journal creation is also uncertain.
-  const data = await client.query(api.printing.interrupted, { secret, worker });
-  for (const job of data ?? [])
-    journal
-      .prepare(
-        "INSERT OR IGNORE INTO attempts(id,status,detail) VALUES (?, 'uncertain', 'Worker stopped before confirming dispatch. Check the printer before reprinting.')",
-      )
-      .run(job.id);
   journal.exec(
     "UPDATE attempts SET status = 'uncertain', detail = 'Dispatch was interrupted. Check the printer before reprinting.' WHERE status = 'processing'",
   );
-  const unreported = journal
-    .prepare("SELECT id, status, detail FROM attempts WHERE reported = 0")
-    .all();
-  for (const row of unreported)
-    await finish(
-      String(row.id),
-      String(row.status),
-      row.detail === null ? null : String(row.detail),
-    );
+  // Drain bounded server batches before claiming any new physical work.
+  while (true) {
+    const data = await client.query(api.printing.interrupted, {
+      secret,
+      worker,
+    });
+    if (!data.length) break;
+    for (const job of data) {
+      journal
+        .prepare(
+          "INSERT OR IGNORE INTO attempts(id,status,detail) VALUES (?, 'uncertain', 'Worker stopped before confirming dispatch. Check the printer before reprinting.')",
+        )
+        .run(job.id);
+      const row = journal
+        .prepare("SELECT status, detail FROM attempts WHERE id = ?")
+        .get(job.id)!;
+      await finish(
+        job.id,
+        String(row.status),
+        row.detail === null ? null : String(row.detail),
+      );
+    }
+  }
+  while (true) {
+    const unreported = journal
+      .prepare(
+        "SELECT id, status, detail FROM attempts WHERE reported = 0 LIMIT 100",
+      )
+      .all();
+    if (!unreported.length) break;
+    for (const row of unreported)
+      await finish(
+        String(row.id),
+        String(row.status),
+        row.detail === null ? null : String(row.detail),
+      );
+  }
 }
+
 try {
   await reconcile();
 } catch (error) {
@@ -109,7 +129,9 @@ try {
   while (!stopping) {
     try {
       const pending = journal
-        .prepare("SELECT id, status, detail FROM attempts WHERE reported = 0")
+        .prepare(
+          "SELECT id, status, detail FROM attempts WHERE reported = 0 LIMIT 100",
+        )
         .all();
       for (const row of pending)
         await finish(

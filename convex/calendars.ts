@@ -120,8 +120,8 @@ export const tick = internalMutation({
     const due = await ctx.db
       .query("calendar_sources")
       .withIndex("by_refresh", (q) => q.lte("nextRefresh", Date.now()))
-      .take(20);
-    for (const source of due) {
+      .paginate({ cursor: null, numItems: 20, maximumBytesRead: 500_000 });
+    for (const source of due.page) {
       const version = source.version + 1;
       await ctx.db.patch(source._id, {
         version,

@@ -1,4 +1,4 @@
-import { elapsed } from "../src/domain/workspace";
+import { elapsed, type Workspace } from "../src/domain/workspace";
 import { v } from "convex/values";
 import { z } from "zod";
 import { Agent } from "@convex-dev/agent";
@@ -24,9 +24,10 @@ export const generate = internalAction({
   args: { id: v.id("planning_jobs") },
   returns: v.null(),
   handler: async (ctx, { id }) => {
-    const claimed = await ctx.runMutation(internal.planning.claim, { id });
+    const claimed = await ctx.runAction(internal.planning.claim, { id });
     if (!claimed) return null;
-    const { job, state } = claimed;
+    const { job } = claimed;
+    const state: Workspace = JSON.parse(claimed.state);
     const now = Date.now();
     const settings = state.planningSettings;
     const plan: DailyPlan = {
@@ -123,7 +124,7 @@ export const generate = internalAction({
       plan.message =
         "Could not prepare a plan. Your existing schedule is unchanged. Try again.";
     }
-    await ctx.runMutation(internal.planning.finish, {
+    await ctx.runAction(internal.planning.finish, {
       id,
       attempt: job.attempt,
       plan: JSON.stringify(plan),

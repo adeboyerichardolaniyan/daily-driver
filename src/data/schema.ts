@@ -14,7 +14,13 @@ export const schema = new Schema({
       payload: column.text,
       uploaded: column.integer,
     },
-    { localOnly: true, indexes: { pending: ["uploaded", "clock"] } },
+    {
+      localOnly: true,
+      indexes: {
+        pending: ["uploaded", "clock", "actor_id"],
+        event_order: ["clock", "actor_id"],
+      },
+    },
   ),
   local_settings: new Table({ value: column.text }, { localOnly: true }),
 });
