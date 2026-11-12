@@ -44,6 +44,7 @@ import { FocusPanel } from "@/components/focus-panel";
 import { TaskEditor } from "@/components/task-editor";
 import { TaskRow } from "@/components/task-list";
 import { Connections } from "@/components/connections";
+import { WebUpdateNotice } from "@/components/web-update-notice";
 import { useLocalDay } from "@/lib/clock";
 import { AIPanel } from "@/components/ai-panel";
 import { CalendarView } from "@/components/calendar-view";
@@ -437,6 +438,7 @@ export default function App() {
                 </SheetTrigger>
               </div>
             </header>
+            <WebUpdateNotice />
             {(error ||
               connectionError ||
               queryError ||

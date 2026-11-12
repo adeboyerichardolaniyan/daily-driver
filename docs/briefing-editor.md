@@ -22,6 +22,8 @@ Add a **Rotating content** section to the template and select a collection. Appr
 
 **Save today's briefing** freezes the receipt, including its selected content and task list. Reprints use this saved version; later collection edits affect future briefings. The receipt has one QR linking to `/?briefing=YYYY-MM-DD`, where the same signed-in user can see the saved briefing and check off its tasks. Historical content stays unchanged; task completion reflects the current task state. The link contains no credentials. A public HTTPS app URL and workspace sync are required to open it on another device.
 
+**Open saved briefing** opens today's saved receipt in a modal over the editor. Closing it or pressing Escape returns focus to the button and preserves unsaved template edits. Receipt QR links still open the dedicated saved-briefing view.
+
 AI requests queue in the local event log while offline. Missing server keys leave jobs waiting; a one-minute scheduler resumes them when the key becomes available. Attempts have a timeout and stale completions are ignored. Draft generation is tested with mocked model output; live provider output and physical printing still require setup verification.
 
 ## Receipt design

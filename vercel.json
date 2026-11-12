@@ -5,11 +5,15 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/((?!assets/|updates/|api/|sw.js|workbox-|manifest.webmanifest|icon.svg).*)",
+      "source": "/((?!assets/|updates/|api/|registerSW.js|sw.js|workbox-|manifest.webmanifest|icon.svg).*)",
       "destination": "/index.html"
     }
   ],
   "headers": [
+    {
+      "source": "/registerSW.js",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+    },
     {
       "source": "/sw.js",
       "headers": [

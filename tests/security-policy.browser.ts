@@ -8,9 +8,12 @@ import config from "../vercel.json";
 // Exercise the built app with the exact deployment headers, including SQLite/WASM
 // startup and the sandboxed receipt iframe. Run npm run build first.
 it("boots and renders receipts under the deployed CSP in Chromium and WebKit", async () => {
+  const policy = config.headers.find((rule) => rule.source === "/(.*)");
+  if (!policy) throw new Error("Missing deployment security headers");
   const headers = Object.fromEntries(
-    config.headers[1].headers.map((h) => [h.key, h.value]),
+    policy.headers.map((h) => [h.key, h.value]),
   );
+  expect(headers["Content-Security-Policy"]).toBeTruthy();
   const types: Record<string, string> = {
     ".html": "text/html",
     ".js": "text/javascript",

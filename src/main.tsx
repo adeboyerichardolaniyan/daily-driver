@@ -11,6 +11,10 @@ import App from "./App";
 import { initializeEventStore } from "./data/event-store";
 import { db } from "./data/database";
 import { WorkspaceAuth } from "./data/auth";
+import { startWebUpdates } from "./lib/web-updates";
+
+const stopWebUpdates = startWebUpdates();
+if (import.meta.hot) import.meta.hot.dispose(stopWebUpdates);
 
 class ErrorBoundary extends Component<
   { children: ReactNode },

@@ -17,6 +17,14 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import type { Workspace } from "@/domain/workspace";
 import type { WorkspaceRepository } from "@/data/repository";
 import {
@@ -66,6 +74,7 @@ export function Briefings({
   const [linkedDay, setLinkedDay] = useState(() =>
     new URLSearchParams(location.search).get("briefing"),
   );
+  const [savedOpen, setSavedOpen] = useState(false);
   const issued = workspace.issuedBriefings[day];
   const publicUrl =
     workspace.briefingSchedule.appUrl !== "https://example.invalid"
@@ -143,10 +152,28 @@ export function Briefings({
           <div className="briefing-collection-tools">
             <ContentCollections workspace={workspace} repository={repository} />
             {issued && (
-              <Button variant="outline" onClick={() => setLinkedDay(day)}>
-                <FileText aria-hidden="true" />
-                Open saved briefing
-              </Button>
+              <Dialog open={savedOpen} onOpenChange={setSavedOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <FileText aria-hidden="true" />
+                    Open saved briefing
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="saved-briefing-dialog">
+                  <DialogHeader>
+                    <DialogTitle>Saved briefing</DialogTitle>
+                    <DialogDescription>
+                      Your saved receipt for today. Template edits apply to
+                      future briefings.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <SavedBriefing
+                    date={day}
+                    workspace={workspace}
+                    repository={repository}
+                  />
+                </DialogContent>
+              </Dialog>
             )}
           </div>
         </header>
@@ -636,15 +663,17 @@ function SavedBriefing({
   date: string;
   workspace: Workspace;
   repository: WorkspaceRepository;
-  onBack: () => void;
+  onBack?: () => void;
 }) {
   const saved = workspace.issuedBriefings[date];
   const [error, setError] = useState("");
   return (
     <div className="saved-briefing">
-      <Button variant="ghost" onClick={onBack}>
-        Back to editor
-      </Button>
+      {onBack && (
+        <Button variant="ghost" onClick={onBack}>
+          Back to editor
+        </Button>
+      )}
       <h2>{saved?.title ?? "Daily briefing"}</h2>
       {saved?.titleAttribution && <small>{saved.titleAttribution}</small>}
       <p>{saved?.date ?? date}</p>
