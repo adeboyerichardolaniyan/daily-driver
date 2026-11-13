@@ -1,12 +1,12 @@
 {
-  "version": "0.2.5",
-  "notes": "Fix scheduled briefings and planning failing when workspace history exceeds the database read limit.\nRead history in indexed, bounded pages while preserving saved tasks, briefings, and offline edits.\nImprove local database indexes for sync, workspace loading, and export.\nAdd targeted indexes and bounded recovery for printer and PDF jobs.\n",
-  "pub_date": "2026-11-12T23:19:36.657Z",
+  "version": "0.2.6",
+  "notes": "Fix the command palette appearing off the top and left of the window in release builds.\nKeep search, results, and keyboard hints visible at small and large window sizes.\nPreserve keyboard navigation, offline search, and focus restoration.\n",
+  "pub_date": "2026-11-13T01:43:02.842Z",
   "platforms": {
     "darwin-aarch64": {
-      "url": "https://daily-driver-liard.vercel.app/updates/daily-driver-0.2.5-aarch64.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTcmZuUkd6YlBpNGEyOFhsckNPdWlXV3FYamkrRXV3Nnl2U1J5K0dsTDNsTDU2bmFQTE13eXozS2ZUWTFNY25xdmV6ZjJGZGRqSUsrNnVKVklJRHRkRFdVR0xPdjNHRGdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NTI1NTc2CWZpbGU6RGFpbHkgRHJpdmVyLmFwcC50YXIuZ3oJdmVyc2lvbjowLjIuNQpyN2VQbzdHSHlsczZneVBWajcxOXNQUG16dUJLYTJxcG85aHVrd0UxRVlmb1l6OG5admpDdUtabncybXE1SUplM0Z3UG42SG5nOFIwN2t4UjVPNkpBQT09Cg==",
-      "sha256": "55518bdbcdfc4b888086140e449a3513e50f1eb14f4665df7a4585e4818c3883"
+      "url": "https://daily-driver-liard.vercel.app/updates/daily-driver-0.2.6-aarch64.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTcmZuUkd6YlBpNFpMNWpPQXdGZ2ZPd3VXUy9tSktlNVhpaExteHRWZ25Cc0FCQlE0RE80UmRnNUUzY1h4NHVjdytCZ3loa1pHWnJCbFJmK0MxVGU4RlFwcG9jc3FGcmdvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NTM0MTgyCWZpbGU6RGFpbHkgRHJpdmVyLmFwcC50YXIuZ3oJdmVyc2lvbjowLjIuNgptcnB6Zm9qNldQQnhscFZHeldreTc4Vzh5YkdlbWd5TDlTdGdseHhkWFA4SFc5ZS90Ui9mN3hBcU0wSEJKenpOM3ZjUG9wd1VVVlhDY0h1YVQ2bG1BUT09Cg==",
+      "sha256": "e4894fabfedafb4525c9aa6c27076c63d5074fc4f74f3c8f7a5b31b154d2b491"
     }
   }
 }

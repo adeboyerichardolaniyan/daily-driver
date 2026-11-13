@@ -1908,8 +1908,6 @@ h1 {
   width: min(640px, calc(100vw - 32px));
   max-width: min(640px, calc(100vw - 32px));
   top: min(18dvh, 120px);
-  transform: translateX(-50%);
-  translate: none;
   padding: 0;
   gap: 0;
   overflow: hidden;

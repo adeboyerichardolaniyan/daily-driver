@@ -26,10 +26,13 @@ The signing key was generated locally at ~/.config/daily-driver/updater.key, out
 ```sh
 npm run typecheck
 npm test
+TEST_PRODUCTION=1 npx playwright test tests/e2e/command-layout.spec.ts
 npm run desktop:release -- docs/releases/0.2.1.md
 ```
 
 The release script uses the key above, or TAURI_SIGNING_PRIVATE_KEY and optional TAURI_SIGNING_PRIVATE_KEY_PASSWORD from the publishing environment. It builds the Apple Silicon .app, generates the signed .app.tar.gz, stages public/updates/latest.json and its archive in .desktop-releases, and creates a first-install ZIP in src-tauri/target/release/bundle/macos.
+
+Run the command palette layout check against the production build: CSS optimization can change positioning even when the development view passes. The check covers fully visible controls, horizontal centering, and small Mac windows in Chromium and WebKit.
 
 4. Publish through the existing Vercel project:
 

@@ -64,7 +64,7 @@ export function SearchCommand({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="search-command-dialog"
+        className="search-command-dialog translate-y-0"
         showCloseButton={false}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
